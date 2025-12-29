@@ -1,7 +1,7 @@
 # Preventivo Manager (AI Powered)
 Serverless, Single-File Quote Editor powered by Google Gemini AI
 
-[Vai alla versione Italiana](#-preventivo-manager-italiano)
+[Vai alla versione Italiana](#preventivo-manager-italiano)
 
 ## Introduction
 **Preventivo Manager** is a serverless, "Single-File Application" (SFA) quote editor. Encapsulated entirely within one HTML file, it runs directly in your browser with no backend or installation required.

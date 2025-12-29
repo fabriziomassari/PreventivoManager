@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preventivo Manager</title>
+    
+    <!-- FONTS E ICONE -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* --- STILI UI EDITOR --- */
+        body { background-color: #eef2f5; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        #app-toolbar { width: 100%; background: #2c3e50; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 1000; box-sizing: border-box; }
+        .toolbar-group { display: flex; gap: 10px; align-items: center; }
+        #doc-title-input { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 5px 10px; border-radius: 4px; font-family: inherit; width: 250px; }
+        #doc-title-input:focus { background: rgba(255,255,255,0.2); outline: none; border-color: rgba(255,255,255,0.5); }
+        #doc-title-input::placeholder { color: rgba(255,255,255,0.5); }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.7; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-warning { background: #f1c40f; color: #333; }
+        .btn-light { background: #ecf0f1; color: #333; }
+        .btn-dark { background: #34495e; color: white; }
+        .btn-purple { background: #9b59b6; color: white; }
+        .btn-orange { background: #e67e22; color: white; }
+        .btn-gray { background: #7f8c8d; color: white; }
+        .btn-magic { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-magic:hover { box-shadow: 0 0 10px rgba(118, 75, 162, 0.5); }
+
+        #editor-container { flex: 1; overflow-y: auto; width: 100%; display: flex; justify-content: center; padding: 40px 0; background-image: radial-gradient(#dfe6e9 1px, transparent 1px); background-size: 20px 20px; box-sizing: border-box; }
+        #document-canvas { background: white; width: 240mm; min-height: 297mm; height: fit-content; padding: 1cm; box-shadow: 0 0 20px rgba(0,0,0,0.15); position: relative; box-sizing: border-box; margin-bottom: 40px; }
+        #empty-state { text-align: center; color: #7f8c8d; margin-top: 100px; }
+        #empty-state i { font-size: 64px; margin-bottom: 20px; color: #bdc3c7; }
+        
+        /* Editing Visuals */
+        .editable-field { cursor: text; caret-color: #000; min-width: 10px; vertical-align: top; }
+        .editable-field:hover { outline: 2px dashed #3498db; background-color: rgba(52, 152, 219, 0.05); border-radius: 3px; }
+        .editable-field:focus { outline: 2px solid #3498db; background-color: rgba(52, 152, 219, 0.1); padding: 0 2px; z-index: 10; position: relative; }
+        div.editable-field { display: block; width: 100%; }
+
+        /* Controlli Fluttuanti */
+        .row-controls, .list-controls, .section-controls { display: none; position: absolute; background: white; border: 1px solid #bdc3c7; border-radius: 4px; padding: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; }
+        .row-wrapper { position: relative; }
+        tr:hover .row-controls { display: flex; gap: 4px; left: -56px; top: 0; }
+        .row-controls::after { content: ''; position: absolute; top: 0; right: -20px; width: 20px; height: 100%; background: transparent; }
+
+        /* C.A. List Item Controls */
+        .list-item-wrapper { position: relative; transition: background 0.2s, transform 0.2s; min-height: 24px; display: flex; align-items: center; }
+        .list-item-wrapper.dragging { opacity: 0.5; background: #eee; }
+        .list-item-wrapper:hover .list-controls { display: flex; gap: 2px; left: -60px; top: 50%; transform: translateY(-50%); padding-right: 15px; margin-right: -15px; z-index: 200; }
+
+        .section-wrapper { position: relative; transition: outline 0.2s; }
+        .section-wrapper:hover { outline: 1px dashed #bdc3c7; }
+        .section-wrapper:hover .section-controls { display: flex; gap: 5px; right: -1px; top: 0; transform: translateY(-100%); background: white; color: #333; border: 1px solid #ddd; padding: 4px; font-size: 11px; font-weight: bold; border-radius: 4px 4px 0 0; box-shadow: 0 -2px 4px rgba(0,0,0,0.05); }
+        .section-controls::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 100%; height: 5px; }
+
+        .mini-btn { width: 24px; height: 24px; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .mini-btn.delete { background: #ffebee; color: #c0392b; }
+        .mini-btn.delete:hover { background: #e74c3c; color: white; }
+        .mini-btn.add { background: #e8f5e9; color: #27ae60; }
+        .mini-btn.add:hover { background: #2ecc71; color: white; }
+        .mini-btn.copy { background: #e3f2fd; color: #1976d2; }
+        .mini-btn.copy:hover { background: #2196f3; color: white; }
+        .mini-btn.save { background: #f3e5f5; color: #8e44ad; }
+        .mini-btn.save:hover { background: #9b59b6; color: white; }
+        .mini-btn.drag { background: #f0f0f0; color: #555; cursor: grab; }
+        .mini-btn.drag:active { cursor: grabbing; }
+
+        .add-section-zone { height: 15px; margin: 5px 0; position: relative; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .add-section-zone:hover { height: 40px; background: rgba(52, 152, 219, 0.1); border-radius: 4px; }
+        .add-section-btn, .paste-section-btn { display: none; font-size: 13px; padding: 5px 15px; color: white; border: none; border-radius: 20px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 5; }
+        .add-section-btn { background: #3498db; }
+        .add-section-btn:hover { background: #2980b9; }
+        .paste-section-btn { background: #9b59b6; }
+        .paste-section-btn:hover { background: #8e44ad; }
+        .add-section-zone:hover .add-section-btn, .add-section-zone:hover .paste-section-btn { display: block; }
+
+        #text-format-toolbar { position: absolute; background: #2c3e50; border-radius: 4px; padding: 5px; display: none; gap: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 2000; transform: translateX(-50%) translateY(-100%); pointer-events: auto; }
+        #text-format-toolbar::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #2c3e50 transparent transparent transparent; }
+        .format-btn { background: transparent; border: none; color: white; cursor: pointer; width: 24px; height: 24px; border-radius: 3px; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .format-btn:hover { background: rgba(255,255,255,0.2); }
+        .format-btn.active { background: #3498db; color: white; }
+
+        #template-modal, #settings-modal, #section-modal, #magic-modal, #rewrite-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; align-items: center; justify-content: center; }
+        .modal-content { background: white; width: 700px; max-height: 85vh; overflow-y: auto; padding: 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { margin: 0; font-family: 'Comfortaa'; }
+        .close-modal { cursor: pointer; font-size: 24px; }
+        .template-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
+        .section-card-custom { border: 1px solid #eee; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; background: #fff; transition: box-shadow 0.2s; }
+        .section-card-custom:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-color: #3498db; }
+        
+        .preview-box { width: 100%; height: 150px; background: #f9f9f9; border-bottom: 1px solid #eee; position: relative; overflow: hidden; cursor: default; }
+        .preview-content {
+            transform: scale(0.45); /* Zoom out per anteprima */
+            transform-origin: top left;
+            width: 222%; /* Compensazione zoom (100 / 0.45) */
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+            pointer-events: none; /* Disabilita interazione nella preview */
+        }
+        
+        .card-info { padding: 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+        .card-input { border: 1px solid transparent; padding: 4px; font-size: 14px; font-weight: bold; width: 100%; border-radius: 4px; box-sizing: border-box; }
+        .card-input:focus { border-color: #3498db; outline: none; background: #fbfbfb; }
+        .card-desc { border: 1px solid transparent; padding: 4px; font-size: 11px; color: #666; width: 100%; border-radius: 4px; font-family: inherit; resize: none; box-sizing: border-box; }
+        .card-desc:focus { border-color: #3498db; outline: none; background: #fbfbfb; }
+        
+        .card-actions { padding: 10px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 5px; background: #fcfcfc; }
+
+        .settings-form label { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 14px; cursor: pointer; }
+        .settings-form input[type="checkbox"] { transform: scale(1.2); }
+        .settings-group { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
+        .settings-title { font-weight: bold; margin-bottom: 10px; color: #333; display: block; }
+        .lang-control { display: flex; gap: 10px; margin-bottom: 10px; }
+        .lang-control select { flex: 1; padding: 5px; border-radius: 4px; border: 1px solid #ddd; }
+        
+        /* Magic Modal Styles */
+        .magic-textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; resize: vertical; font-family: inherit; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
+        .magic-textarea:focus { border-color: #764ba2; outline: none; background: #fdfaff; }
+        .magic-file-label { display: inline-block; padding: 8px 12px; background: #f0f0f0; border-radius: 4px; cursor: pointer; font-size: 13px; color: #555; margin-bottom: 15px; }
+        .magic-file-label:hover { background: #e0e0e0; }
+        .magic-file-name { margin-left: 10px; font-size: 12px; color: #764ba2; }
+        .magic-loader { display: none; text-align: center; padding: 20px; }
+        .magic-loader i { font-size: 30px; color: #764ba2; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .magic-controls { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
+        .magic-select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; }
+
+        .modal-tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+        .modal-tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: bold; color: #7f8c8d; }
+        .modal-tab.active { color: #3498db; border-bottom-color: #3498db; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Modalità Manutenzione (nasconde pulsanti insert) */
+        .maintenance-mode .btn-insert { display: none !important; }
+
+        /* --- PM DIALOGS (Custom Alerts/Prompts) --- */
+        #pm-dialog-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }
+        .pm-dialog-box { background: white; width: 400px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: popin 0.2s ease-out; display: flex; flex-direction: column; gap: 15px; }
+        @keyframes popin { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .pm-dialog-title { font-family: 'Comfortaa', sans-serif; font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 5px; }
+        .pm-dialog-msg { font-size: 14px; color: #555; line-height: 1.5; }
+        .pm-dialog-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
+        .pm-dialog-input:focus { border-color: #3498db; outline: none; background: #f8fbff; }
+        .pm-dialog-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+        
+        /* Custom Expiry Style */
+        .pm-expiry-container { display: flex; flex-direction: column; gap: 10px; border: 1px solid #eee; padding: 15px; border-radius: 6px; background: #f9f9f9; }
+        .pm-expiry-toggle { display: flex; align-items: center; gap: 10px; font-weight: bold; color: #2c3e50; cursor: pointer; }
+    </style>
+    
+    <style id="document-styles">
+        @page { size: A4; margin: 2cm; }
+        .doc-body { font-family: 'Montserrat', sans-serif; font-size: 10pt; line-height: 1.5; color: #000; background: #fff; }
+        .no-break { page-break-inside: avoid; }
+        .page-break { page-break-before: always; }
+        .section-wrapper { page-break-inside: avoid; break-inside: avoid; }
+        .doc-header { margin-bottom: 40px; width: 100%; }
+        .doc-sender { font-family: 'Comfortaa', cursive; font-weight: 700; font-size: 20pt; margin-bottom: 20px; color: #666; }
+        .doc-recipient { margin-left: 50%; font-size: 10pt; }
+        .doc-h2 { font-size: 12pt; font-weight: 700; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-p { margin-bottom: 10px; text-align: justify; }
+        .doc-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9.5pt; }
+        .doc-table th, .doc-table td { border: 1px solid #aaa; padding: 8px 8px; vertical-align: middle; }
+        .doc-table th { background-color: #f9f9f9; font-weight: 600; text-align: left; }
+        .col-days { width: 8%; text-align: center; }
+        .col-price { width: 15%; text-align: right; }
+        .col-discount { width: 10%; text-align: center; }
+        .col-total { width: 15%; text-align: right; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-bold { font-weight: bold; }
+        .bg-gray { background-color: #f0f0f0; }
+        .doc-footer { margin-top: 40px; font-size: 8pt; border-top: 1px solid #000; padding-top: 10px; color: #444; text-align: center; }
+        .doc-signature-section { margin-top: 30px; }
+        .doc-signature { margin-top: 20px; margin-bottom: 30px; text-align: right; }
+        .doc-signature-name { font-family: 'Comfortaa', cursive; font-weight: 700; font-size: 14pt; }
+        .print-btn-final { position: fixed; top: 20px; right: 20px; background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; z-index: 1000; font-family: 'Montserrat', sans-serif; text-decoration: none; display: inline-block; }
+        .print-btn-final:hover { background: #0056b3; }
+        @media print {
+            body { margin: 0; padding: 0; background: white; box-shadow: none; }
+            .doc-body { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+            .row-controls, .list-controls, .section-controls, .add-section-zone, .mini-btn, .print-btn-final { display: none !important; }
+        }
+        @media screen {
+            .final-preview-body { background-color: #eef2f5; margin: 0; padding: 40px 0; display: flex; justify-content: center; min-height: 100vh; }
+            .final-preview-page { background: white; width: 240mm; min-height: 297mm; padding: 1cm; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin: 0 auto; box-sizing: border-box; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOOLBAR -->
+    <div id="app-toolbar">
+        <div class="toolbar-group">
+            <span style="font-weight: 700; font-family: 'Comfortaa'; font-size: 18px; margin-right: 15px;" data-i18n="app_title">
+                <i class="fas fa-file-invoice-dollar"></i> PreventivoManager
+            </span>
+            <input type="text" id="doc-title-input" data-i18n-placeholder="ph_doc_title" data-i18n-title="title_doc_title" placeholder="Titolo del Preventivo..." title="Modifica il titolo del documento (nome file)" onchange="updateDocumentTitle(this.value)">
+        </div>
+        <div class="toolbar-group">
+            <button class="btn btn-magic" onclick="openMagicWizard()" title="AI Assistant" style="margin-right: 10px;" data-i18n="btn_magic">
+                <i class="fas fa-wand-magic-sparkles"></i> Magic AI
+            </button>
+            <button class="btn btn-light" id="btn-new" onclick="createNewPreventivo()" data-i18n="btn_new">
+                <i class="fas fa-plus-circle"></i> Nuovo
+            </button>
+            <button class="btn btn-purple" onclick="openTemplateManager()" data-i18n="btn_templates">
+                <i class="fas fa-list-alt"></i> Template
+            </button>
+            <button class="btn btn-purple" onclick="openSectionManager(null)" data-i18n-title="title_sections_lib" title="Gestisci Libreria Sezioni" data-i18n="btn_sections">
+                <i class="fas fa-th-large"></i> Sezioni
+            </button>
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" data-i18n="btn_open">
+                <i class="fas fa-folder-open"></i> Apri File
+            </button>
+            <input type="file" id="fileInput" accept=".html" style="display: none;" onchange="loadFromFile(this)">
+        </div>
+        <div class="toolbar-group">
+            <!-- Backup Controls -->
+            <button class="btn btn-orange" onclick="exportBackup()" title="Backup" data-i18n-title="title_backup" data-i18n="btn_backup">
+                <i class="fas fa-download"></i> Backup
+            </button>
+            <button class="btn btn-orange" onclick="document.getElementById('backupInput').click()" title="Restore" data-i18n-title="title_restore" data-i18n="btn_restore">
+                <i class="fas fa-upload"></i> Restore
+            </button>
+            <input type="file" id="backupInput" accept=".json" style="display: none;" onchange="importBackup(this)">
+            <div style="width: 10px; border-left: 1px solid rgba(255,255,255,0.3); margin: 0 5px;"></div>
+            <button class="btn btn-gray" onclick="openSettings()" title="Impostazioni" data-i18n-title="title_settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button class="btn btn-dark" id="btn-undo" onclick="undo()" disabled title="Annulla (Ctrl+Z)" data-i18n-title="title_undo">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button class="btn btn-dark" id="btn-redo" onclick="redo()" disabled title="Ripeti (Ctrl+Y)" data-i18n-title="title_redo">
+                <i class="fas fa-redo"></i>
+            </button>
+            <div style="width: 10px;"></div>
+            <button class="btn btn-purple" onclick="saveAsTemplate()" title="Salva come Modello" data-i18n-title="title_save_template" data-i18n="btn_save_template">
+                <i class="fas fa-save"></i> Salva Modello
+            </button>
+            <button class="btn btn-success" onclick="saveToFile()" data-i18n="btn_save_html">
+                <i class="fas fa-download"></i> Salva HTML
+            </button>
+        </div>
+    </div>
+
+    <!-- AREA EDITOR -->
+    <div id="editor-container">
+        <div id="empty-state">
+            <i class="fas fa-file-alt"></i>
+            <h2 data-i18n="empty_state_title">Nessun preventivo caricato</h2>
+            <p data-i18n="empty_state_subtitle">Caricamento automatico bozza in corso...</p>
+        </div>
+        <div id="document-canvas" class="doc-body" style="display: none;"></div>
+        <div id="text-format-toolbar">
+            <button class="format-btn" id="btn-bold" title="Grassetto" data-i18n-title="title_bold"><i class="fas fa-bold"></i></button>
+            <button class="format-btn" id="btn-italic" title="Corsivo" data-i18n-title="title_italic"><i class="fas fa-italic"></i></button>
+            <!-- New AI Button -->
+            <button class="format-btn" id="btn-rewrite" title="AI Rewrite" style="color: #a5b4fc;"><i class="fas fa-magic"></i></button>
+        </div>
+    </div>
+
+    <!-- MODALI -->
+    <div id="template-modal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 data-i18n="modal_tmpl_title">Gestione Template</h2><span class="close-modal" onclick="closeTemplateManager()">&times;</span></div>
+            <p data-i18n="modal_tmpl_desc">Gestisci i tuoi modelli salvati.</p>
+            <ul id="template-list-container" style="list-style:none; padding:0; margin:0;"></ul>
+        </div>
+    </div>
+
+    <div id="settings-modal">
+        <div class="modal-content" style="width: 450px;">
+            <div class="modal-header"><h2 data-i18n="modal_settings_title">Impostazioni</h2><span class="close-modal" onclick="closeSettings()">&times;</span></div>
+            <div class="settings-form">
+                <label><input type="checkbox" id="setting-decimals" onchange="toggleDecimals(this.checked)"> <span data-i18n="opt_decimals">Usa 2 cifre decimali nei prezzi (es. 1.200,00)</span></label>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                <label><input type="checkbox" id="setting-encryption" onchange="toggleEncryption(this.checked)"> <span data-i18n="opt_encryption">Abilita Protezione Anti-Modifica (Preventivi Cifrati)</span></label>
+                <p style="font-size: 11px; color: #666; margin-top: -10px; margin-left: 28px;" data-i18n="opt_encryption_help">Se attivo, i file HTML salvati saranno cifrati e illeggibili con editor di testo. Utile per impedire modifiche manuali.</p>
+                
+                <div class="settings-group">
+                    <span class="settings-title">Google Gemini API Key</span>
+                    <input type="password" id="gemini-api-key" placeholder="Incolla la tua API Key qui... (Paste your API Key here...)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;" onchange="saveApiKey(this.value)">
+                    <p style="font-size: 11px; color: #666; margin-top: 5px;">
+                        <span data-i18n="magic_api_help">Necessaria per la funzionalità "Magic AI". Ottienila gratis su:</span> <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3498db;">Google AI Studio</a>.
+                    </p>
+                </div>
+
+                <div class="settings-group">
+                    <span class="settings-title" data-i18n="settings_lang_title">Lingua / Language</span>
+                    <div class="lang-control">
+                        <select id="language-selector" onchange="loadLanguage(this.value)"></select>
+                        <button class="btn btn-primary mini-btn" onclick="document.getElementById('langInput').click()" title="Importa" data-i18n-title="title_import_lang"><i class="fas fa-upload"></i></button>
+                        <button class="btn btn-dark mini-btn" onclick="deleteLanguage()" title="Elimina Custom" data-i18n-title="title_delete_lang"><i class="fas fa-trash"></i></button>
+                        <input type="file" id="langInput" accept=".json" style="display: none;" onchange="importLanguage(this)">
+                    </div>
+                    <div style="text-align: right;">
+                        <a href="#" onclick="downloadLanguageTemplate()" style="font-size: 12px; color: #3498db;" data-i18n="settings_download_tmpl">Scarica Template Lingua</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE LIBRERIA SEZIONI -->
+    <div id="section-modal">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="section-modal-title" data-i18n="modal_sections_title">Libreria Sezioni</h2><span class="close-modal" onclick="closeSectionManager()">&times;</span></div>
+            <div class="modal-tabs">
+                <div class="modal-tab active" onclick="switchSectionTab('base')" data-i18n="tab_base_models">Modelli Base</div>
+                <div class="modal-tab" onclick="switchSectionTab('custom')" data-i18n="tab_my_sections">Le Mie Sezioni</div>
+            </div>
+            <div id="tab-base" class="tab-content active">
+                <div id="base-section-list" class="template-list">
+                    <!-- Popolato via JS -->
+                </div>
+            </div>
+            <div id="tab-custom" class="tab-content">
+                <!-- Popolato via JS -->
+                <p id="no-custom-sections" style="color:#999; text-align:center; display:none; grid-column: 1 / -1;" data-i18n="msg_no_sections">Nessuna sezione salvata.</p>
+                <div id="custom-section-list" class="template-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAGIC WIZARD MODAL -->
+    <div id="magic-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-wand-magic-sparkles" style="color: #764ba2;"></i> <span data-i18n="magic_title">Magic AI Assistant</span></h2>
+                <span class="close-modal" onclick="closeMagicWizard()">&times;</span>
+            </div>
+            <p data-i18n="magic_desc">Descrivi il preventivo che vuoi creare. L'AI genererà le sezioni e i calcoli per te, mantenendo la tua intestazione.</p>
+            
+            <div class="magic-controls">
+                <select id="magic-tone" class="magic-select">
+                    <option value="Standard" data-i18n="magic_tone_std">Standard</option>
+                    <option value="Formal" data-i18n="magic_tone_formal">Formale / Istituzionale</option>
+                    <option value="Friendly" data-i18n="magic_tone_friendly">Amichevole / Moderno</option>
+                    <option value="Technical" data-i18n="magic_tone_tech">Tecnico / Dettagliato</option>
+                </select>
+            </div>
+
+            <textarea id="magic-prompt" class="magic-textarea" data-i18n-placeholder="magic_placeholder" placeholder="Esempio: Crea un preventivo per Mario Rossi per lo sviluppo di un sito E-Commerce. Includi 5 giorni di analisi a 200€, 10 di sviluppo a 250€ e un costo fisso di hosting di 150€. Aggiungi una sezione di testo per la manutenzione."></textarea>
+            
+            <label class="magic-file-label">
+                <i class="fas fa-paperclip"></i> <span data-i18n="magic_attach">Allega contesto (.txt, .md)</span>
+                <input type="file" id="magic-file-input" accept=".txt,.md" style="display:none" onchange="handleMagicFile(this)">
+                <span id="magic-file-name" class="magic-file-name"></span>
+            </label>
+
+            <div id="magic-loader" class="magic-loader">
+                <i class="fas fa-spinner"></i>
+                <p style="margin-top: 10px; color: #666;" data-i18n="magic_loading">Analisi richiesta e generazione in corso...</p>
+            </div>
+            
+            <div id="magic-retry-container" style="display:none; text-align: center; margin-bottom: 15px;">
+                <p style="color: #e74c3c; font-size: 14px; margin-bottom: 10px;" id="magic-error-msg"></p>
+                <button class="btn btn-warning" onclick="generateQuoteWithAI(true)" style="margin: 0 auto;">
+                    <i class="fas fa-sync"></i> <span data-i18n="magic_btn_retry">Riprova</span>
+                </button>
+            </div>
+
+            <div class="card-actions" style="background: transparent; border: none; padding: 0;">
+                <button id="magic-btn-generate" class="btn btn-magic" onclick="generateQuoteWithAI()" style="width: 100%; justify-content: center; font-size: 16px; padding: 12px;">
+                    <i class="fas fa-bolt"></i> <span data-i18n="magic_btn_generate">Genera Preventivo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI REWRITE MODAL (New) -->
+    <div id="rewrite-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-magic" style="color: #a5b4fc;"></i> <span data-i18n="rewrite_title">AI Rewrite</span></h2>
+                <span class="close-modal" onclick="closeRewriteModal()">&times;</span>
+            </div>
+            <p data-i18n="rewrite_desc">Modifica il testo selezionato o istruisci l'AI su come riscriverlo.</p>
+            
+            <div class="magic-controls">
+                <select id="rewrite-tone" class="magic-select">
+                    <option value="Standard" data-i18n="magic_tone_std">Standard</option>
+                    <option value="Formal" data-i18n="magic_tone_formal">Formale / Istituzionale</option>
+                    <option value="Friendly" data-i18n="magic_tone_friendly">Amichevole / Moderno</option>
+                    <option value="Technical" data-i18n="magic_tone_tech">Tecnico / Dettagliato</option>
+                </select>
+            </div>
+
+            <textarea id="rewrite-input" class="magic-textarea" style="height: 120px;" data-i18n-placeholder="rewrite_placeholder" placeholder="Testo da riscrivere..."></textarea>
+            
+            <div id="rewrite-loader" class="magic-loader">
+                <i class="fas fa-spinner"></i>
+                <p style="margin-top: 10px; color: #666;" data-i18n="magic_loading">Generazione in corso...</p>
+            </div>
+            
+            <div id="rewrite-retry-container" style="display:none; text-align: center; margin-bottom: 15px;">
+                <p style="color: #e74c3c; font-size: 14px; margin-bottom: 10px;" id="rewrite-error-msg"></p>
+                <button class="btn btn-warning" onclick="rewriteTextWithAI()" style="margin: 0 auto;">
+                    <i class="fas fa-sync"></i> <span data-i18n="magic_btn_retry">Riprova</span>
+                </button>
+            </div>
+
+            <div class="card-actions" style="background: transparent; border: none; padding: 0;">
+                <button id="rewrite-btn-generate" class="btn btn-primary" onclick="rewriteTextWithAI()" style="width: 100%; justify-content: center; font-size: 16px; padding: 12px; background: #667eea; border:none;">
+                    <i class="fas fa-pen-nib"></i> <span data-i18n="rewrite_btn">Riscrivi</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PM DIALOGS CONTAINER -->
+    <div id="pm-dialog-overlay">
+        <div class="pm-dialog-box">
+            <div id="pm-dialog-title" class="pm-dialog-title">Titolo</div>
+            <div id="pm-dialog-msg" class="pm-dialog-msg">Messaggio</div>
+            <div id="pm-dialog-input-container" style="display:none;"></div>
+            <div class="pm-dialog-buttons" id="pm-dialog-actions"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- STORAGE KEYS ---
+        const KEY_DRAFT = 'pm_current_draft';
+        const KEY_DRAFT_TITLE = 'pm_current_draft_title'; 
+        const KEY_TEMPLATES = 'pm_templates';
+        const KEY_SETTINGS = 'pm_settings';
+        const KEY_SECTIONS = 'pm_section_library'; 
+        const KEY_LANGUAGES = 'pm_languages';
+
+        // --- CONSTANTS ---
+        const COPY_MARKER = '<!-- PREVENTIVO_MANAGER_SECTION -->';
+        const CRYPTO_KEY = "PM_SECURE_KEY_X89"; 
+
+        // --- BUILT-IN LANGUAGES ---
+        const LANG_IT = {
+            meta: { code: 'it', name: 'Italiano' },
+            config: {
+                locale: 'it-IT',
+                currency: 'EUR',
+                currencyDisplay: 'symbol',
+                direction: 'ltr',
+                dateFormat: 'DD/MM/YYYY',
+                decimalSeparator: ',',
+                groupSeparator: '.'
+            },
+            translations: {
+                "app_title": "PreventivoManager",
+                "ph_doc_title": "Titolo del Preventivo...",
+                "title_doc_title": "Modifica il titolo del documento (nome file)",
+                "btn_new": "Nuovo",
+                "btn_templates": "Template",
+                "btn_sections": "Sezioni",
+                "title_sections_lib": "Gestisci Libreria Sezioni",
+                "btn_open": "Apri File",
+                "btn_backup": "Backup",
+                "title_backup": "Backup",
+                "btn_restore": "Restore",
+                "title_restore": "Restore",
+                "title_settings": "Impostazioni",
+                "title_undo": "Annulla (Ctrl+Z)",
+                "title_redo": "Ripeti (Ctrl+Y)",
+                "btn_save_template": "Salva Modello",
+                "title_save_template": "Salva come Modello",
+                "btn_save_html": "Salva HTML",
+                "empty_state_title": "Nessun preventivo caricato",
+                "empty_state_subtitle": "Caricamento automatico bozza in corso...",
+                "title_bold": "Grassetto",
+                "title_italic": "Corsivo",
+                "modal_tmpl_title": "Gestione Template",
+                "modal_tmpl_desc": "Gestisci i tuoi modelli salvati.",
+                "modal_settings_title": "Impostazioni",
+                "opt_decimals": "Usa 2 cifre decimali nei prezzi (es. 1.200,00)",
+                "opt_encryption": "Abilita Protezione Anti-Modifica (Preventivi Cifrati)",
+                "opt_encryption_help": "Se attivo, i file HTML salvati saranno cifrati e illeggibili con editor di testo. Utile per impedire modifiche manuali.",
+                "settings_lang_title": "Lingua / Language",
+                "title_import_lang": "Importa",
+                "title_delete_lang": "Elimina Custom",
+                "settings_download_tmpl": "Scarica Template Lingua",
+                "modal_sections_title": "Libreria Sezioni",
+                "tab_base_models": "Modelli Base",
+                "tab_my_sections": "Le Mie Sezioni",
+                "msg_no_sections": "Nessuna sezione salvata.",
+                
+                "title_insert": "Inserisci",
+                "title_delete": "Elimina",
+                "title_copy": "Copia",
+                "title_save_lib": "Salva in Libreria",
+                "title_drag": "Trascina",
+
+                // Magic AI
+                "btn_magic": "Magic AI",
+                "magic_title": "Magic AI Assistant",
+                "magic_desc": "Descrivi il preventivo. L'AI genererà sezioni e calcoli mantenendo l'intestazione.",
+                "magic_placeholder": "Esempio: Preventivo per Mario Rossi per E-Commerce. 5gg analisi @ 200, 10gg dev @ 250...",
+                "magic_attach": "Allega contesto (.txt, .md)",
+                "magic_loading": "Analisi richiesta e generazione in corso...",
+                "magic_btn_generate": "Genera Preventivo",
+                "magic_btn_retry": "Riprova",
+                "magic_api_help": "Necessaria per la funzionalità \"Magic AI\". Ottienila gratis su:",
+                "magic_api_missing": "Per usare Magic AI, inserisci prima una API Key nelle Impostazioni.",
+                "magic_api_missing_title": "Configurazione Richiesta",
+                "magic_input_missing": "Inserisci una richiesta o carica un file.",
+                "magic_error_title": "Errore AI",
+                "magic_success": "Preventivo generato con successo!",
+                "magic_tone_std": "Standard",
+                "magic_tone_formal": "Formale / Istituzionale",
+                "magic_tone_friendly": "Amichevole / Moderno",
+                "magic_tone_tech": "Tecnico / Dettagliato",
+
+                // AI Rewrite
+                "rewrite_title": "AI Rewrite",
+                "rewrite_desc": "Modifica il testo o chiedi all'AI di riscriverlo.",
+                "rewrite_btn": "Riscrivi",
+                "rewrite_placeholder": "Il testo selezionato apparirà qui...",
+                "rewrite_success": "Testo aggiornato!",
+
+                // Dialogs
+                "dialog_title": "Preventivo Manager",
+                "btn_ok": "OK",
+                "btn_cancel": "Annulla",
+                "btn_confirm": "Conferma",
+                "btn_save": "Salva",
+                
+                // JS Messages
+                "msg_section_name": "Nome per questa sezione:",
+                "msg_new_section": "Nuova Sezione",
+                "msg_section_desc": "Descrizione (opzionale):",
+                "msg_section_saved": "Sezione salvata in libreria!",
+                "msg_delete_section": "Eliminare questa sezione dalla libreria?",
+                "msg_section_copied": "Sezione copiata negli appunti!",
+                "msg_copy_error": "Impossibile copiare la sezione:",
+                "msg_paste_error": "Errore durante la lettura degli appunti:",
+                "msg_paste_invalid": "Il contenuto degli appunti non sembra essere una sezione valida.",
+                "msg_paste_notfound": "Nessuna sezione valida trovata negli appunti.",
+                "msg_doc_empty": "Il documento è vuoto, impossibile salvare.",
+                "msg_save_prot": "Il file verrà salvato con la PROTEZIONE attiva",
+                "msg_save_clear": "Il file verrà salvato IN CHIARO (non protetto).",
+                "msg_decrypt_err": "Impossibile decifrare il file protetto:",
+                "msg_load_prot": "Documento protetto caricato.",
+                "msg_expiry_set": "Scadenza impostata:",
+                "msg_load_err": "Errore: Il file selezionato non contiene dati validi.",
+                "msg_backup_import_ok": "Backup importato con successo!",
+                "msg_backup_err": "Errore nella lettura del file JSON di backup:",
+                "msg_confirm_new": "Creare un nuovo preventivo cancellerà quello attuale. Continuare?",
+                "msg_confirm_load_tmpl": "Caricare questo modello sostituirà il documento attuale. Procedere?",
+                "msg_confirm_del_tmpl": "Eliminare definitivamente questo modello?",
+                "msg_new_tmpl_name": "Nome per il nuovo modello:",
+                "msg_new_tmpl_default": "Nuovo Modello",
+                "msg_set_default": "Impostare come modello di Default?",
+                "msg_tmpl_saved": "Modello salvato con successo!",
+                "msg_overwrite_backup": "Sovrascrivere tutto il contenuto attuale con il backup?",
+                "msg_lang_imported": "Lingua importata con successo!",
+                "msg_lang_exists": "Questa lingua esiste già. Sovrascrivere?",
+                "msg_lang_delete_confirm": "Eliminare la lingua selezionata?",
+                "msg_lang_error": "File lingua non valido.",
+
+                // Expiry Dialog
+                "expiry_title": "Imposta Scadenza",
+                "expiry_msg": "Definisci la validità del documento protetto.",
+                "expiry_toggle": "Imposta una data di scadenza",
+                "expiry_none": "Nessuna scadenza impostata.",
+                "expiry_invalid": "Data non valida",
+                "expiry_past": "Scaduto da {days} giorni",
+                "expiry_today": "Scade oggi",
+                "expiry_future": "Scade tra {days} giorni",
+
+                // Protected File Injected Strings
+                "prot_loading": "Caricamento documento protetto...",
+                "prot_msg_devtools": "CONTENUTO PROTETTO",
+                "prot_msg_expired": "DOCUMENTO SCADUTO",
+                "prot_msg_invalid": "Questo preventivo non è più valido (Scadenza: {date})",
+                "prot_btn_print": "Stampa / PDF",
+                "prot_watermark": "Protected",
+                "prot_err_decrypt": "Errore decifratura: File corrotto."
+            }
+        };
+
+        const LANG_EN = {
+            meta: { code: 'en-US', name: 'English (US)' },
+            config: {
+                locale: 'en-US',
+                currency: 'USD',
+                currencyDisplay: 'symbol',
+                direction: 'ltr',
+                dateFormat: 'MM/DD/YYYY',
+                decimalSeparator: '.',
+                groupSeparator: ','
+            },
+            translations: {
+                "app_title": "PreventivoManager",
+                "ph_doc_title": "Quote Title...",
+                "title_doc_title": "Edit document title (filename)",
+                "btn_new": "New",
+                "btn_templates": "Templates",
+                "btn_sections": "Sections",
+                "title_sections_lib": "Manage Section Library",
+                "btn_open": "Open File",
+                "btn_backup": "Backup",
+                "title_backup": "Backup",
+                "btn_restore": "Restore",
+                "title_restore": "Restore",
+                "title_settings": "Settings",
+                "title_undo": "Undo (Ctrl+Z)",
+                "title_redo": "Redo (Ctrl+Y)",
+                "btn_save_template": "Save Template",
+                "title_save_template": "Save as Template",
+                "btn_save_html": "Save HTML",
+                "empty_state_title": "No quote loaded",
+                "empty_state_subtitle": "Loading draft automatically...",
+                "title_bold": "Bold",
+                "title_italic": "Italic",
+                "modal_tmpl_title": "Template Management",
+                "modal_tmpl_desc": "Manage your saved templates.",
+                "modal_settings_title": "Settings",
+                "opt_decimals": "Use 2 decimals in prices (e.g. 1,200.00)",
+                "opt_encryption": "Enable Anti-Tamper Protection (Encrypted Quotes)",
+                "opt_encryption_help": "If active, saved HTML files will be encrypted and unreadable with text editors. Useful to prevent manual editing.",
+                "settings_lang_title": "Lingua / Language",
+                "title_import_lang": "Import",
+                "title_delete_lang": "Delete Custom",
+                "settings_download_tmpl": "Download Language Template",
+                "modal_sections_title": "Section Library",
+                "tab_base_models": "Base Models",
+                "tab_my_sections": "My Sections",
+                "msg_no_sections": "No saved sections.",
+                
+                "title_insert": "Insert",
+                "title_delete": "Delete",
+                "title_copy": "Copy",
+                "title_save_lib": "Save to Library",
+                "title_drag": "Drag",
+
+                // Magic AI
+                "btn_magic": "Magic AI",
+                "magic_title": "Magic AI Assistant",
+                "magic_desc": "Describe your quote. AI will generate sections and calcs preserving your header.",
+                "magic_placeholder": "Example: Quote for John Doe for E-Commerce. 5 days analysis @ 200, 10 days dev @ 250...",
+                "magic_attach": "Attach context (.txt, .md)",
+                "magic_loading": "Reasoning and generating...",
+                "magic_btn_generate": "Generate Quote",
+                "magic_btn_retry": "Retry",
+                "magic_api_help": "Required for \"Magic AI\". Get it free at:",
+                "magic_api_missing": "To use Magic AI, please enter an API Key in Settings first.",
+                "magic_api_missing_title": "Configuration Required",
+                "magic_input_missing": "Please enter a request or upload a file.",
+                "magic_error_title": "AI Error",
+                "magic_success": "Quote generated successfully!",
+                "magic_tone_std": "Standard",
+                "magic_tone_formal": "Formal / Institutional",
+                "magic_tone_friendly": "Friendly / Modern",
+                "magic_tone_tech": "Technical / Detailed",
+
+                // AI Rewrite
+                "rewrite_title": "AI Rewrite",
+                "rewrite_desc": "Edit text or ask AI to rewrite it.",
+                "rewrite_btn": "Rewrite",
+                "rewrite_placeholder": "Selected text will appear here...",
+                "rewrite_success": "Text updated!",
+
+                // Dialogs
+                "dialog_title": "Preventivo Manager",
+                "btn_ok": "OK",
+                "btn_cancel": "Cancel",
+                "btn_confirm": "Confirm",
+                "btn_save": "Save",
+                
+                // JS Messages
+                "msg_section_name": "Name for this section:",
+                "msg_new_section": "New Section",
+                "msg_section_desc": "Description (optional):",
+                "msg_section_saved": "Section saved to library!",
+                "msg_delete_section": "Delete this section from library?",
+                "msg_section_copied": "Section copied to clipboard!",
+                "msg_copy_error": "Cannot copy section:",
+                "msg_paste_error": "Error reading clipboard:",
+                "msg_paste_invalid": "Clipboard content does not seem to be a valid section.",
+                "msg_paste_notfound": "No valid section found in clipboard.",
+                "msg_doc_empty": "Document is empty, cannot save.",
+                "msg_save_prot": "The file will be saved with PROTECTION enabled",
+                "msg_save_clear": "The file will be saved in CLEAR TEXT (unprotected).",
+                "msg_decrypt_err": "Cannot decrypt protected file:",
+                "msg_load_prot": "Protected document loaded.",
+                "msg_expiry_set": "Expiry set:",
+                "msg_load_err": "Error: Selected file does not contain valid data.",
+                "msg_backup_import_ok": "Backup imported successfully!",
+                "msg_backup_err": "Error reading backup JSON file:",
+                "msg_confirm_new": "Creating a new quote will discard the current one. Continue?",
+                "msg_confirm_load_tmpl": "Loading this template will replace the current document. Proceed?",
+                "msg_confirm_del_tmpl": "Permanently delete this template?",
+                "msg_new_tmpl_name": "Name for the new template:",
+                "msg_new_tmpl_default": "New Template",
+                "msg_set_default": "Set as Default template?",
+                "msg_tmpl_saved": "Template saved successfully!",
+                "msg_overwrite_backup": "Overwrite current content with backup?",
+                "msg_lang_imported": "Language imported successfully!",
+                "msg_lang_exists": "This language already exists. Overwrite?",
+                "msg_lang_delete_confirm": "Delete selected language?",
+                "msg_lang_error": "Invalid language file.",
+
+                // Expiry Dialog
+                "expiry_title": "Set Expiry",
+                "expiry_msg": "Define validity for the protected document.",
+                "expiry_toggle": "Set an expiration date",
+                "expiry_none": "No expiry set.",
+                "expiry_invalid": "Invalid date",
+                "expiry_past": "Expired by {days} days",
+                "expiry_today": "Expires today",
+                "expiry_future": "Expires in {days} days",
+
+                // Protected File Injected Strings
+                "prot_loading": "Loading protected document...",
+                "prot_msg_devtools": "PROTECTED CONTENT",
+                "prot_msg_expired": "DOCUMENT EXPIRED",
+                "prot_msg_invalid": "This quote is no longer valid (Expiry: {date})",
+                "prot_btn_print": "Print / PDF",
+                "prot_watermark": "Protected",
+                "prot_err_decrypt": "Decryption error: Corrupted file."
+            }
+        };
+
+        const BUILTIN_LANGUAGES = {
+            'it': LANG_IT,
+            'en-US': LANG_EN
+        };
+        
+        // --- GLOBAL STATE ---
+        let appSettings = { useDecimals: false, enableEncryption: false, defaultExpiryEnabled: false, activeLanguage: 'en-US', geminiApiKey: '' };
+        let activeLocale = LANG_EN; 
+
+        const MAX_HISTORY = 30;
+        let undoStack = [], redoStack = [], isUndoing = false, inputDebounceTimer = null;
+        let activeInsertionZone = null;
+        let currentDocumentExpiry = ""; 
+        let magicContextFile = null;
+        let currentSelectionRange = null; // Used for AI Rewrite
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Preventivo Manager v1.35");
+            const savedSettings = localStorage.getItem(KEY_SETTINGS);
+            if (savedSettings) appSettings = JSON.parse(savedSettings);
+            document.getElementById('setting-decimals').checked = appSettings.useDecimals;
+            document.getElementById('setting-encryption').checked = appSettings.enableEncryption || false;
+            document.getElementById('gemini-api-key').value = appSettings.geminiApiKey || '';
+
+            // Load Language
+            loadLanguage(appSettings.activeLanguage || 'it', true);
+
+            const savedDraft = localStorage.getItem(KEY_DRAFT);
+            const savedTitle = localStorage.getItem(KEY_DRAFT_TITLE);
+            const titleInput = document.getElementById('doc-title-input');
+            
+            if (savedDraft) {
+                document.getElementById('document-canvas').innerHTML = savedDraft;
+                if (savedTitle) { titleInput.value = savedTitle; document.title = savedTitle; }
+                else titleInput.value = "Quote";
+                showCanvas(); hydrateDocument();
+                undoStack = [{html: savedDraft, title: titleInput.value}]; updateUndoRedoButtons();
+            } else createNewPreventivo();
+        });
+
+        // --- I18N ENGINE ---
+        function getCustomLanguages() {
+            return JSON.parse(localStorage.getItem(KEY_LANGUAGES) || '{}');
+        }
+
+        function t(key) {
+            return activeLocale.translations[key] || LANG_IT.translations[key] || key;
+        }
+
+        function loadLanguage(code, isInitial = false) {
+            const customs = getCustomLanguages();
+            
+            if (BUILTIN_LANGUAGES[code]) {
+                activeLocale = BUILTIN_LANGUAGES[code];
+            } else if (customs[code]) {
+                activeLocale = customs[code];
+            } else {
+                activeLocale = LANG_IT;
+                code = 'it';
+            }
+
+            appSettings.activeLanguage = code;
+            if(!isInitial) localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings));
+
+            document.body.dir = activeLocale.config.direction || 'ltr';
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.innerHTML = t(key);
+            });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                el.title = t(key);
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                el.placeholder = t(key);
+            });
+
+            renderSettingsLanguageControls();
+
+            if (!isInitial) hydrateDocument(); 
+        }
+
+        function renderSettingsLanguageControls() {
+            const select = document.getElementById('language-selector');
+            if(!select) return;
+            select.innerHTML = '';
+            
+            // Built-ins
+            Object.keys(BUILTIN_LANGUAGES).forEach(code => {
+                let opt = document.createElement('option');
+                opt.value = code;
+                opt.innerText = BUILTIN_LANGUAGES[code].meta.name;
+                if(appSettings.activeLanguage === code) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            // Customs
+            const customs = getCustomLanguages();
+            Object.keys(customs).forEach(code => {
+                let cOpt = document.createElement('option');
+                cOpt.value = code;
+                cOpt.innerText = customs[code].meta.name + " (Custom)";
+                if(appSettings.activeLanguage === code) cOpt.selected = true;
+                select.appendChild(cOpt);
+            });
+        }
+
+        function importLanguage(inp) {
+            const f = inp.files[0]; if(!f) return;
+            const r = new FileReader();
+            r.onload = async e => {
+                try {
+                    const langData = JSON.parse(e.target.result);
+                    if(!langData.meta || !langData.meta.code || !langData.translations || !langData.config) throw new Error("Invalid Structure");
+                    
+                    const code = langData.meta.code;
+                    const customs = getCustomLanguages();
+                    
+                    if(customs[code]) {
+                        if(!await pmConfirm(t("msg_lang_exists"), t("settings_lang_title"))) { inp.value=''; return; }
+                    }
+                    
+                    customs[code] = langData;
+                    localStorage.setItem(KEY_LANGUAGES, JSON.stringify(customs));
+                    await pmAlert(t("msg_lang_imported"));
+                    loadLanguage(code); 
+                    
+                } catch(err) {
+                    await pmAlert(t("msg_lang_error") + " " + err, "Errore");
+                }
+                inp.value='';
+            };
+            r.readAsText(f);
+        }
+
+        async function deleteLanguage() {
+            const code = document.getElementById('language-selector').value;
+            if(BUILTIN_LANGUAGES[code]) return; // Cannot delete built-in
+            
+            if(await pmConfirm(t("msg_lang_delete_confirm"), t("title_delete"))) {
+                const customs = getCustomLanguages();
+                delete customs[code];
+                localStorage.setItem(KEY_LANGUAGES, JSON.stringify(customs));
+                loadLanguage('it'); 
+            }
+        }
+
+        function downloadLanguageTemplate() {
+            // Requirement: Download must be in English US
+            const tmpl = LANG_EN; 
+            // Just ensure meta code doesn't conflict immediately if user imports it back without editing
+            const downloadObj = JSON.parse(JSON.stringify(tmpl));
+            downloadObj.meta.code = "new-lang";
+            downloadObj.meta.name = "New Language";
+
+            const b = new Blob([JSON.stringify(downloadObj, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `pm_language_template.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+
+        // --- PM DIALOGS ENGINE ---
+        function pmDialog(config) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('pm-dialog-overlay');
+                const titleEl = document.getElementById('pm-dialog-title');
+                const msgEl = document.getElementById('pm-dialog-msg');
+                const inpCont = document.getElementById('pm-dialog-input-container');
+                const actCont = document.getElementById('pm-dialog-actions');
+
+                titleEl.innerText = config.title || t("dialog_title");
+                msgEl.innerHTML = config.msg || ""; // Allow HTML
+                actCont.innerHTML = '';
+                inpCont.innerHTML = '';
+                inpCont.style.display = config.type === 'prompt' ? 'block' : 'none';
+
+                let inputEl = null;
+                if (config.type === 'prompt') {
+                    if(config.inputType === 'date') {
+                        inputEl = document.createElement('input');
+                        inputEl.type = 'date';
+                    } else {
+                        inputEl = document.createElement('input');
+                        inputEl.type = 'text';
+                    }
+                    inputEl.className = 'pm-dialog-input';
+                    inputEl.value = config.value || '';
+                    if(config.placeholder) inputEl.placeholder = config.placeholder;
+                    inpCont.appendChild(inputEl);
+                    inputEl.onkeydown = (e) => { if(e.key === 'Enter') confirmAction(); };
+                }
+
+                function close() { overlay.style.display = 'none'; }
+                
+                function confirmAction() {
+                    close();
+                    if (config.type === 'prompt') resolve(inputEl.value);
+                    else resolve(true);
+                }
+
+                function cancelAction() {
+                    close();
+                    if (config.type === 'prompt') resolve(null);
+                    else resolve(false);
+                }
+
+                if (config.type !== 'alert') {
+                    const btnCancel = document.createElement('button');
+                    btnCancel.className = 'btn btn-light';
+                    btnCancel.innerText = t("btn_cancel");
+                    btnCancel.onclick = cancelAction;
+                    actCont.appendChild(btnCancel);
+                }
+
+                const btnOk = document.createElement('button');
+                btnOk.className = 'btn btn-primary';
+                btnOk.innerText = config.okText || t("btn_ok");
+                btnOk.onclick = confirmAction;
+                actCont.appendChild(btnOk);
+
+                overlay.style.display = 'flex';
+                if(inputEl) inputEl.focus();
+            });
+        }
+
+        async function pmAlert(msg, title) { return pmDialog({ type: 'alert', msg, title }); }
+        async function pmConfirm(msg, title) { return pmDialog({ type: 'confirm', msg, title, okText: t("btn_confirm") }); }
+        async function pmPrompt(msg, value = '', inputType = 'text', title) { return pmDialog({ type: 'prompt', msg, value, inputType, title }); }
+
+        // --- SPECIFIC EXPIRY DIALOG ---
+        function pmExpiryDialog(currentExpiry) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('pm-dialog-overlay');
+                const titleEl = document.getElementById('pm-dialog-title');
+                const msgEl = document.getElementById('pm-dialog-msg');
+                const inpCont = document.getElementById('pm-dialog-input-container');
+                const actCont = document.getElementById('pm-dialog-actions');
+
+                titleEl.innerText = t("expiry_title");
+                msgEl.innerText = t("expiry_msg");
+                actCont.innerHTML = '';
+                inpCont.innerHTML = '';
+                inpCont.style.display = 'block';
+
+                function getTomorrow() {
+                    const d = new Date(); d.setDate(d.getDate() + 1);
+                    return d.toISOString().split('T')[0];
+                }
+
+                let initialEnabled = false;
+                let initialDate = getTomorrow();
+
+                if (currentExpiry) {
+                    const d = new Date(currentExpiry);
+                    if(!isNaN(d.getTime())) {
+                        initialEnabled = true;
+                        initialDate = currentExpiry;
+                    }
+                } else {
+                    initialEnabled = false;
+                }
+
+                let tempDateMemory = initialDate;
+
+                const container = document.createElement('div');
+                container.className = 'pm-expiry-container';
+
+                const toggleLabel = document.createElement('label');
+                toggleLabel.className = 'pm-expiry-toggle';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = initialEnabled;
+                toggleLabel.appendChild(checkbox);
+                toggleLabel.appendChild(document.createTextNode(t("expiry_toggle")));
+
+                const dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.className = 'pm-dialog-input';
+                dateInput.style.marginTop = '10px';
+                dateInput.value = initialDate;
+                dateInput.disabled = !initialEnabled;
+                if(!initialEnabled) dateInput.style.display = 'none';
+                
+                const feedbackEl = document.createElement('div');
+                feedbackEl.style.fontSize = '12px';
+                feedbackEl.style.marginTop = '5px';
+                feedbackEl.style.fontWeight = 'bold';
+
+                container.appendChild(toggleLabel);
+                container.appendChild(dateInput);
+                container.appendChild(feedbackEl);
+                inpCont.appendChild(container);
+
+                function updateFeedback() {
+                    if (!checkbox.checked) {
+                        feedbackEl.innerText = t("expiry_none");
+                        feedbackEl.style.color = '#999';
+                        return;
+                    }
+                    const val = dateInput.value;
+                    if(!val) return;
+                    
+                    const target = new Date(val);
+                    const today = new Date();
+                    target.setHours(0,0,0,0);
+                    today.setHours(0,0,0,0);
+                    
+                    if(isNaN(target.getTime())) {
+                        feedbackEl.innerText = t("expiry_invalid");
+                        feedbackEl.style.color = 'red';
+                        return;
+                    }
+
+                    const diffTime = target - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                    if (diffDays < 0) {
+                        feedbackEl.innerText = t("expiry_past").replace("{days}", Math.abs(diffDays));
+                        feedbackEl.style.color = '#e74c3c';
+                    } else if (diffDays === 0) {
+                        feedbackEl.innerText = t("expiry_today");
+                        feedbackEl.style.color = '#e67e22';
+                    } else {
+                        feedbackEl.innerText = t("expiry_future").replace("{days}", diffDays);
+                        feedbackEl.style.color = '#27ae60';
+                    }
+                }
+
+                checkbox.onchange = () => {
+                    if (checkbox.checked) {
+                        dateInput.disabled = false;
+                        dateInput.style.display = 'block';
+                        dateInput.value = tempDateMemory;
+                    } else {
+                        if (dateInput.value) tempDateMemory = dateInput.value;
+                        dateInput.disabled = true;
+                        dateInput.style.display = 'none';
+                    }
+                    updateFeedback();
+                };
+
+                dateInput.oninput = () => {
+                    tempDateMemory = dateInput.value;
+                    updateFeedback();
+                };
+
+                updateFeedback();
+
+                function close() { overlay.style.display = 'none'; }
+                
+                function confirmAction() {
+                    appSettings.defaultExpiryEnabled = checkbox.checked;
+                    localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings));
+                    close();
+                    if (checkbox.checked) resolve(dateInput.value);
+                    else resolve(""); 
+                }
+
+                function cancelAction() {
+                    close();
+                    resolve(null);
+                }
+
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'btn btn-light';
+                btnCancel.innerText = t("btn_cancel");
+                btnCancel.onclick = cancelAction;
+
+                const btnOk = document.createElement('button');
+                btnOk.className = 'btn btn-primary';
+                btnOk.innerText = t("btn_save");
+                btnOk.onclick = confirmAction;
+
+                actCont.innerHTML = '';
+                actCont.appendChild(btnCancel);
+                actCont.appendChild(btnOk);
+
+                overlay.style.display = 'flex';
+            });
+        }
+
+        const BASE_SECTION_TEMPLATES = [
+            {
+                id: 'model_a', name: 'A. Calcolo Completo<br>(Full calc)', description: 'Tabella calcolo giorni/costi.<br>(Days/costs calculation table.)',
+                html: `<div class="section-wrapper"><h2 class="doc-h2 editable-field">Titolo Sezione<br>(Section title)</h2><div class="doc-p editable-field">Descrizione...<br>(Description...)</div><table class="doc-table calc-table"><thead><tr><th><div class="editable-field">Descrizione</div></th><th class="col-days"><div class="editable-field">Giorni</div></th><th class="col-price"><div class="editable-field">Costo Giorn.</div></th><th class="col-price"><div class="editable-field">Prezzo</div></th><th class="col-discount"><div class="editable-field">Sconto</div></th><th class="col-total"><div class="editable-field">Totale</div></th></tr></thead><tbody><tr><td class="editable-field">Attività</td><td class="text-center val-days editable-field" data-type="number">1</td><td class="text-right val-cost editable-field" data-type="currency">€ 0</td><td class="text-right val-price bg-gray">€ 0</td><td class="text-center val-discount editable-field" data-type="percent">0%</td><td class="text-right val-total bg-gray">€ 0</td></tr></tbody><tfoot><tr class="text-bold bg-gray row-total"><td>Totale<br>(Totale)</td><td class="text-center total-days">1</td><td></td><td class="text-right total-price">€ 0</td><td></td><td class="text-right total-final">€ 0</td></tr></tfoot></table></div>`
+            },
+            {
+                id: 'model_c', name: 'C. Tabella Libera<br>(Free Table)', description: 'Tabella 5 col. senza calcoli.<br>(5 cols table without calculations.)',
+                html: `<div class="section-wrapper"><h2 class="doc-h2 editable-field">Eventi / Attività<br>(Events / Activities)</h2><div class="doc-p editable-field">Descrizione...<br>(Description...)</div><table class="doc-table"><thead><tr><th><div class="editable-field">Descrizione Evento<br>(Event Description)</div></th><th><div class="editable-field">Tipo<br>(Type)</div></th><th><div class="editable-field">Giornate<br>(Days)</div></th><th class="col-price"><div class="editable-field">Prezzo<br>(Price)</div></th><th><div class="editable-field">Note<br>(Notes)</div></th></tr></thead><tbody><tr><td class="editable-field">Evento<br>(Event)</td><td class="editable-field">Tipo<br>(Type)</td><td class="text-center editable-field">1</td><td class="text-right editable-field" data-type="currency">€ 0</td><td class="editable-field">Note</td></tr></tbody></table></div>`
+            },
+            {
+                id: 'model_d', name: 'D. Voce Singola<br>(Single Item)', description: 'Vendita semplice Prezzo/Sconto con descrizione.<br>(Simple sale Price/Discount with description.)',
+                html: `<div class="section-wrapper"><h2 class="doc-h2 editable-field">Titolo<br>(Title)</h2><div class="doc-p editable-field">Descrizione voce singola...<br>(Single item description...)</div><table class="doc-table calc-table"><thead><tr><th><div class="editable-field">Descrizione<br>(Description)</div></th><th class="col-price"><div class="editable-field">Prezzo<br>(Price)</div></th><th class="col-discount"><div class="editable-field">Sconto<br>(Discount)</div></th><th class="col-total"><div class="editable-field">Totale<br>(Total)</div></th></tr></thead><tbody><tr><td class="editable-field">Voce<br>(Item)</td><td class="text-right val-price editable-field" data-type="currency">€ 0</td><td class="text-center val-discount editable-field" data-type="percent">0%</td><td class="text-right val-total bg-gray">€ 0</td></tr></tbody></table></div>`
+            },
+            {
+                id: 'model_e', name: 'E. Solo Testo<br>(Simple Text)', description: 'Paragrafo testo semplice.<br>(Simple text paragraph.)',
+                html: `<div class="section-wrapper"><h2 class="doc-h2 editable-field">Titolo Paragrafo<br>(Paragraph Title)</h2><div class="doc-p editable-field">Scrivi qui il contenuto del paragrafo...<br>(Write the paragraph content here...)</div></div>`
+            }
+        ];
+
+        const DEFAULT_HARDCODED_TEMPLATE = `
+            <div class="doc-header section-wrapper">
+                <div class="doc-sender editable-field">Your Name / Company</div>
+                <div class="doc-recipient">
+                    <strong class="editable-field">Client Name / Company</strong><br>
+                    <span class="editable-field">Address Line 1<br>City, ZIP Code</span><br><br>
+                    C.A.<br>
+                    <div id="recipients-list">
+                        <div class="list-item-wrapper"><div class="editable-field">Contact Name 1</div></div>
+                        <div class="list-item-wrapper"><div class="editable-field">Contact Name 2</div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="section-wrapper">
+                <p><strong class="editable-field">Date: DD Month YYYY</strong></p>
+                <p><strong>Oggetto:</strong> <span class="editable-field">Quote Subject</span></p>
+                <div class="doc-p editable-field">Introductory text goes here...</div>
+            </div>
+            <div class="add-section-zone"></div>
+            <div class="section-wrapper">
+                <h2 class="doc-h2 editable-field">1. Service Description</h2>
+                <table class="doc-table calc-table">
+                    <thead>
+                        <tr>
+                            <th><div class="editable-field">Description</div></th>
+                            <th class="col-days"><div class="editable-field">Days</div></th>
+                            <th class="col-price"><div class="editable-field">Daily Cost</div></th>
+                            <th class="col-price"><div class="editable-field">Price</div></th>
+                            <th class="col-discount"><div class="editable-field">Discount</div></th>
+                            <th class="col-total"><div class="editable-field">Total</div></th>
+                        </tr>
+                    </thead>
+                    <tbody><tr><td class="editable-field">Activity 1</td><td class="text-center val-days editable-field" data-type="number">1</td><td class="text-right val-cost editable-field" data-type="currency">€ 100</td><td class="text-right val-price bg-gray">€ 100</td><td class="text-center val-discount editable-field" data-type="percent">0%</td><td class="text-right val-total bg-gray">€ 100</td></tr></tbody>
+                    <tfoot><tr class="text-bold bg-gray row-total"><td>Total</td><td class="text-center total-days">1</td><td></td><td class="text-right total-price">€ 100</td><td></td><td class="text-right total-final">€ 100</td></tr></tfoot>
+                </table>
+            </div>
+            <div class="add-section-zone"></div>
+            <div class="doc-signature-section section-wrapper">
+                <br><div class="doc-p editable-field">Best Regards.</div>
+                <div class="doc-signature"><span class="doc-signature-name editable-field">Your Name</span><br><span class="editable-field">Job Title</span></div>
+            </div>
+            <div class="doc-footer section-wrapper"><div class="editable-field">Company Footer Info - VAT ID 00000000000<br>(other useful information)</div></div>
+        `;
+
+        // --- SECTION LIBRARY LOGIC ---
+        function getCustomSections() { return JSON.parse(localStorage.getItem(KEY_SECTIONS) || '[]'); }
+        function saveCustomSections(list) { localStorage.setItem(KEY_SECTIONS, JSON.stringify(list)); }
+
+        function openSectionManager(zone) {
+            activeInsertionZone = zone;
+            const modal = document.getElementById('section-modal');
+            const title = document.getElementById('section-modal-title');
+            
+            if (!zone) {
+                // Modalità manutenzione (Toolbar)
+                title.innerText = t("modal_sections_title"); // Use translation
+                modal.classList.add('maintenance-mode');
+            } else {
+                // Modalità inserimento
+                title.innerText = t("modal_sections_title"); // Use translation
+                modal.classList.remove('maintenance-mode');
+            }
+
+            renderBaseSections();
+            renderCustomSections();
+            modal.style.display = 'flex';
+            switchSectionTab('base');
+        }
+        function closeSectionManager() { document.getElementById('section-modal').style.display = 'none'; activeInsertionZone = null; }
+
+        function switchSectionTab(tabName) {
+            document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(tabName === 'base') {
+                document.querySelector('.modal-tab:nth-child(1)').classList.add('active');
+                document.getElementById('tab-base').classList.add('active');
+            } else {
+                document.querySelector('.modal-tab:nth-child(2)').classList.add('active');
+                document.getElementById('tab-custom').classList.add('active');
+            }
+        }
+
+        function renderBaseSections() {
+            const container = document.getElementById('base-section-list');
+            container.innerHTML = '';
+            BASE_SECTION_TEMPLATES.forEach(tmpl => {
+                const card = document.createElement('div'); card.className = 'section-card-custom';
+                card.innerHTML = `
+                    <div class="preview-box">
+                        <div class="preview-content doc-body">${tmpl.html}</div>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-input">${tmpl.name}</div>
+                        <div class="card-desc">${tmpl.description}</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary mini-btn btn-insert" onclick="insertSection('${tmpl.id}', 'base')" title="Inserisci"><i class="fas fa-plus"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderCustomSections() {
+            const container = document.getElementById('custom-section-list');
+            const sections = getCustomSections();
+            container.innerHTML = '';
+            
+            if(sections.length === 0) { document.getElementById('no-custom-sections').style.display = 'block'; return; }
+            document.getElementById('no-custom-sections').style.display = 'none';
+            
+            sections.forEach(sec => {
+                const card = document.createElement('div'); card.className = 'section-card-custom';
+                const previewHtml = sec.html; 
+                
+                card.innerHTML = `
+                    <div class="preview-box">
+                        <div class="preview-content doc-body">${previewHtml}</div>
+                    </div>
+                    <div class="card-info">
+                        <input type="text" class="card-input" value="${sec.name}" placeholder="Nome Sezione" onchange="updateSectionInfo('${sec.id}', this.value, null)">
+                        <input type="text" class="card-desc" value="${sec.description || ''}" placeholder="Descrizione..." onchange="updateSectionInfo('${sec.id}', null, this.value)">
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary mini-btn btn-insert" onclick="insertSectionFromLibrary('${sec.id}')" title="Inserisci"><i class="fas fa-plus"></i></button>
+                        <button class="btn btn-dark mini-btn delete" onclick="deleteCustomSection('${sec.id}')" title="Elimina"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function saveSectionToLibrary(sectionElement) {
+            const name = await pmPrompt(t("msg_section_name"), t("msg_new_section"));
+            if(!name) return;
+            const desc = await pmPrompt(t("msg_section_desc"), "");
+            
+            let clone = sectionElement.cloneNode(true);
+            if (clone.querySelector('.section-controls')) clone.querySelector('.section-controls').remove();
+            clone.querySelectorAll('*').forEach(el => el.removeAttribute('contenteditable'));
+            
+            const newSection = {
+                id: Date.now().toString(),
+                name: name,
+                description: desc || "",
+                html: clone.outerHTML
+            };
+            
+            const list = getCustomSections();
+            list.push(newSection);
+            saveCustomSections(list);
+            await pmAlert(t("msg_section_saved"));
+        }
+
+        function insertSectionFromLibrary(id) {
+            const sec = getCustomSections().find(s => s.id === id);
+            if(sec) insertSectionHtml(sec.html);
+        }
+        
+        function insertSection(id, type) {
+            if (type === 'base') {
+                const tmpl = BASE_SECTION_TEMPLATES.find(t => t.id === id);
+                if(tmpl) insertSectionHtml(tmpl.html);
+            }
+        }
+
+        function insertSectionHtml(htmlContent) {
+            if(!activeInsertionZone) return;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const newSection = tempDiv.firstChild;
+            if (newSection && newSection.classList.contains('section-wrapper')) {
+                activeInsertionZone.parentNode.insertBefore(newSection, activeInsertionZone.nextSibling);
+                const newZone = activeInsertionZone.cloneNode(true);
+                newSection.parentNode.insertBefore(newZone, newSection.nextSibling);
+                hydrateDocument();
+                document.querySelectorAll('.calc-table').forEach(t => { calculateTable(t); updateTableTotals(t); });
+                saveState();
+                closeSectionManager();
+            }
+        }
+
+        function updateSectionInfo(id, name, desc) {
+            const list = getCustomSections();
+            const s = list.find(x => x.id === id);
+            if(s) { 
+                if(name !== null) s.name = name; 
+                if(desc !== null) s.description = desc; 
+                saveCustomSections(list); 
+            }
+        }
+        async function deleteCustomSection(id) {
+            if(!await pmConfirm(t("msg_delete_section"))) return;
+            let list = getCustomSections();
+            list = list.filter(x => x.id !== id);
+            saveCustomSections(list);
+            renderCustomSections();
+        }
+
+        // --- HELPER FUNCTIONS FOR CALCULATIONS ---
+        
+        function formatCurrency(n) { 
+            const opts = { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true };
+            if (!appSettings.useDecimals) { opts.minimumFractionDigits = 0; opts.maximumFractionDigits = 0; }
+            return activeLocale.config.currencyDisplay === 'symbol' ? 
+                   (activeLocale.config.currency === 'EUR' ? '€ ' : '$ ') + n.toLocaleString(activeLocale.config.locale, opts) :
+                   n.toLocaleString(activeLocale.config.locale, opts);
+        }
+
+        function parseLocaleNumber(s) { 
+            if(!s) return 0; 
+            const decimalSep = activeLocale.config.decimalSeparator;
+            if (decimalSep === ',') {
+                return parseFloat(s.replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.'))||0; 
+            } else {
+                return parseFloat(s.replace(/[^0-9,.-]/g,'').replace(/,/g,''))||0; 
+            }
+        }
+
+        function normalizeAllCurrencies() {
+            const selector = '.val-cost, .val-price, .val-total, .total-price, .total-final, [data-type="currency"]';
+            document.querySelectorAll(selector).forEach(el => {
+                if(el.tagName === 'TH') return;
+                const val = parseLocaleNumber(el.innerText);
+                el.innerText = formatCurrency(val);
+            });
+        }
+        
+        function calculateTable(table) { table.querySelectorAll('tbody tr').forEach(row => calculateRow(row)); updateTableTotals(table); }
+        function calculateRow(row) {
+            const val = (s) => parseLocaleNumber(row.querySelector(s)?.innerText);
+            let days = val('.val-days'), cost = val('.val-cost'), manual = val('.val-price'), disc = val('.val-discount');
+            let price = row.querySelector('.val-cost') ? days*cost : manual;
+            if(row.querySelector('.val-price') && !row.querySelector('.val-price').isContentEditable && row.querySelector('.val-cost')) row.querySelector('.val-price').innerText = formatCurrency(price);
+            let total = price - (price * (disc/100));
+            if(row.querySelector('.val-total')) row.querySelector('.val-total').innerText = formatCurrency(total);
+        }
+        function updateTableTotals(table) {
+            const val = (el) => parseLocaleNumber(el?.innerText);
+            let d=0, p=0, t=0;
+            table.querySelectorAll('tbody tr').forEach(r => {
+                d += val(r.querySelector('.val-days'));
+                p += val(r.querySelector('.val-price') || r.querySelector('.val-cost'));
+                t += val(r.querySelector('.val-total'));
+            });
+            if(table.querySelector('.total-days')) table.querySelector('.total-days').innerText = d;
+            if(table.querySelector('.total-price')) table.querySelector('.total-price').innerText = formatCurrency(p);
+            if(table.querySelector('.total-final')) table.querySelector('.total-final').innerText = formatCurrency(t);
+        }
+        function formatCell(c) {
+            let v = parseLocaleNumber(c.innerText);
+            if(c.dataset.type==='currency') c.innerText = formatCurrency(v);
+            if(c.dataset.type==='percent') c.innerText = v+'%';
+        }
+
+        // --- STANDARD FUNCTIONS ---
+        function getTemplates() { return JSON.parse(localStorage.getItem(KEY_TEMPLATES) || '[]'); }
+        function saveTemplates(ts) { localStorage.setItem(KEY_TEMPLATES, JSON.stringify(ts)); }
+        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; renderSettingsLanguageControls(); }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+        function toggleDecimals(chk) { 
+            appSettings.useDecimals = chk; 
+            localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings)); 
+            normalizeAllCurrencies();
+            document.querySelectorAll('.calc-table').forEach(t => { 
+                t.querySelectorAll('tbody tr').forEach(r => { calculateRow(r); });
+                updateTableTotals(t); 
+            });
+            saveState(); 
+        }
+        function toggleEncryption(chk) {
+            appSettings.enableEncryption = chk;
+            localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings));
+        }
+        function saveApiKey(val) {
+            appSettings.geminiApiKey = val;
+            localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings));
+        }
+        function updateDocumentTitle(val) { document.title = val || "Quote"; saveState(); }
+        
+        function exportBackup() {
+            const data = { appVersion: "1.35", timestamp: new Date().toISOString(), draft: localStorage.getItem(KEY_DRAFT), draftTitle: localStorage.getItem(KEY_DRAFT_TITLE), templates: getTemplates(), settings: appSettings, sections: getCustomSections(), expiry: currentDocumentExpiry, languages: getCustomLanguages() };
+            const b = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(b); 
+            a.download = `backup_PreventivoManager_${new Date().toISOString().slice(0,10)}.json`; 
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+        async function importBackup(inp) {
+            const f = inp.files[0]; if(!f) return;
+            if(!await pmConfirm(t("msg_overwrite_backup"), t("dialog_title"))) { inp.value=''; return; }
+            const r = new FileReader();
+            r.onload = async e => {
+                try {
+                    const d = JSON.parse(e.target.result);
+                    if(d.templates) saveTemplates(d.templates);
+                    if(d.sections) saveCustomSections(d.sections);
+                    if(d.languages) localStorage.setItem(KEY_LANGUAGES, JSON.stringify(d.languages));
+                    if(d.settings) { 
+                        appSettings = d.settings; 
+                        localStorage.setItem(KEY_SETTINGS, JSON.stringify(appSettings)); 
+                        document.getElementById('setting-decimals').checked = appSettings.useDecimals; 
+                        document.getElementById('setting-encryption').checked = appSettings.enableEncryption || false;
+                        document.getElementById('gemini-api-key').value = appSettings.geminiApiKey || '';
+                        loadLanguage(appSettings.activeLanguage || 'it');
+                    }
+                    if(d.draft) {
+                        localStorage.setItem(KEY_DRAFT, d.draft);
+                        localStorage.setItem(KEY_DRAFT_TITLE, d.draftTitle || "Importato");
+                        document.getElementById('document-canvas').innerHTML = d.draft;
+                        document.getElementById('doc-title-input').value = d.draftTitle || "Importato";
+                        document.title = d.draftTitle || "Importato";
+                        currentDocumentExpiry = d.expiry || "";
+                        hydrateDocument(); undoStack=[{html:d.draft, title:d.draftTitle}]; redoStack=[]; updateUndoRedoButtons();
+                    }
+                    await pmAlert(t("msg_backup_import_ok"));
+                } catch(err){
+                    await pmAlert(t("msg_backup_err") + " " + err);
+                }
+                inp.value='';
+            }; r.readAsText(f);
+        }
+
+        // --- EDITOR LOGIC ---
+        async function createNewPreventivo() {
+            if(document.getElementById('document-canvas').innerHTML.trim() !== "" && !await pmConfirm(t("msg_confirm_new"), t("msg_new_tmpl_default"))) return;
+            const defTmpl = getTemplates().find(x => x.isDefault);
+            const html = defTmpl ? defTmpl.html : DEFAULT_HARDCODED_TEMPLATE;
+            document.getElementById('document-canvas').innerHTML = html;
+            document.getElementById('doc-title-input').value = defTmpl ? (defTmpl.title || "New") : "New Quote";
+            currentDocumentExpiry = ""; // Reset expiry
+            updateDocumentTitle(document.getElementById('doc-title-input').value);
+            showCanvas(); hydrateDocument(); undoStack=[]; redoStack=[]; saveState();
+        }
+        
+        function openTemplateManager() { renderTemplateList(); document.getElementById('template-modal').style.display = 'flex'; }
+        function closeTemplateManager() { document.getElementById('template-modal').style.display = 'none'; }
+        
+        function renderTemplateList() {
+            const list = document.getElementById('template-list-container'); list.innerHTML = '';
+            const templates = getTemplates();
+            if(templates.length===0) list.innerHTML='<li style="padding:10px;text-align:center;color:#999;grid-column: 1 / -1;">Nessun modello salvato. Salva il documento corrente come modello per vederlo qui.</li>';
+            templates.forEach(tmpl => {
+                const li = document.createElement('li'); li.className='section-card-custom';
+                li.innerHTML=`<div class="preview-box"><div class="preview-content doc-body">${tmpl.html}</div></div><div class="card-info"><input type="text" class="card-input" value="${tmpl.name}" onchange="let ts=getTemplates(); ts.find(x=>x.id=='${tmpl.id}').name=this.value; saveTemplates(ts);"><div class="card-desc">${tmpl.date}</div><label style="font-size:12px;cursor:pointer;"><input type="checkbox" ${tmpl.isDefault?'checked':''} onchange="let ts=getTemplates(); let tr=ts.find(x=>x.id=='${tmpl.id}'); let w=tr.isDefault; ts.forEach(x=>x.isDefault=false); if(!w) tr.isDefault=true; saveTemplates(ts); renderTemplateList();"> ${t("msg_set_default")}</label></div><div class="card-actions"><button class="btn btn-primary mini-btn" onclick="loadTemplateWithConfirmation('${tmpl.id}')" data-i18n-title="title_insert" title="${t("title_insert")}"><i class="fas fa-upload"></i></button><button class="btn btn-dark mini-btn delete" onclick="deleteTemplate('${tmpl.id}')" data-i18n-title="title_delete" title="${t("title_delete")}"><i class="fas fa-trash"></i></button></div>`;
+                list.appendChild(li);
+            });
+        }
+
+        async function loadTemplateWithConfirmation(id) {
+            if(await pmConfirm(t("msg_confirm_load_tmpl"), t("btn_templates"))) { 
+                const tmpl = getTemplates().find(x=>x.id==id);
+                if(tmpl) {
+                    document.getElementById('document-canvas').innerHTML=tmpl.html; 
+                    document.getElementById('doc-title-input').value=tmpl.title||'Quote'; 
+                    closeTemplateManager(); 
+                    hydrateDocument(); 
+                    undoStack=[]; redoStack=[]; saveState(); 
+                }
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if(await pmConfirm(t("msg_confirm_del_tmpl"), t("btn_templates"))){ 
+                let ts=getTemplates().filter(x=>x.id!==id); 
+                saveTemplates(ts); 
+                renderTemplateList(); 
+            }
+        }
+
+        async function saveAsTemplate() {
+            const n = await pmPrompt(t("msg_new_tmpl_name"), t("msg_new_tmpl_default")); if(!n) return;
+            const d = await pmConfirm(t("msg_set_default"), "Default");
+            let c = document.getElementById('document-canvas').cloneNode(true);
+            c.querySelectorAll('*').forEach(e=>e.removeAttribute('contenteditable'));
+            ['.row-controls','.list-controls','.section-controls','.add-section-zone','#add-recipient-btn'].forEach(s=>c.querySelectorAll(s).forEach(e=>e.remove()));
+            let ts = getTemplates(); if(d) ts.forEach(x=>x.isDefault=false);
+            ts.push({id:Date.now().toString(), name:n, date:new Date().toLocaleDateString(), html:c.innerHTML, title:document.getElementById('doc-title-input').value, isDefault:d});
+            saveTemplates(ts); 
+            await pmAlert(t("msg_tmpl_saved"));
+        }
+
+        // --- HYDRATE & UI ---
+        function showCanvas() { document.getElementById('empty-state').style.display='none'; document.getElementById('document-canvas').style.display='block'; }
+        
+        function hydrateDocument() {
+            document.querySelectorAll('.dragging').forEach(e=>e.classList.remove('dragging'));
+            document.querySelectorAll('.doc-table th').forEach(th => {
+                if(!th.querySelector('.editable-field') && th.innerText.trim()!=='') th.innerHTML = `<div class="editable-field">${th.innerText}</div>`;
+            });
+            document.querySelectorAll('.editable-field').forEach(el => {
+                el.contentEditable="true";
+                el.addEventListener('paste', e=>{e.preventDefault(); document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text')); saveState();});
+                el.addEventListener('input', ()=>{ clearTimeout(inputDebounceTimer); inputDebounceTimer=setTimeout(()=>saveState(),1000); });
+            });
+            
+            document.querySelectorAll('.doc-table').forEach(t => { 
+                attachRowControls(t); 
+                if(t.classList.contains('calc-table')) calculateTable(t);
+            });
+            
+            detectAndTagCurrencyColumns();
+            normalizeAllCurrencies();
+
+            const rl = document.getElementById('recipients-list');
+            if(rl) {
+                const old = document.getElementById('add-recipient-btn'); if(old) old.remove();
+                let b = document.createElement('button'); b.id='add-recipient-btn'; b.className='mini-btn add'; b.innerHTML='<i class="fas fa-plus"></i>'; b.style.marginTop='5px'; b.onclick=()=>{ let d=document.createElement('div'); d.className='list-item-wrapper'; d.innerHTML=`<div class="editable-field" contenteditable="true">Nuovo</div>`; rl.appendChild(d); attachListControls(d); saveState(); };
+                rl.parentNode.appendChild(b);
+                Array.from(rl.children).forEach(attachListControls);
+            }
+            document.querySelectorAll('.section-wrapper').forEach(attachSectionControls);
+            document.querySelectorAll('.section-wrapper').forEach(s => {
+                if(s.classList.contains('doc-footer')) return;
+                const n = s.nextElementSibling;
+                if(!n || !n.classList.contains('add-section-zone')) {
+                    let z = document.createElement('div'); z.className='add-section-zone'; fillAddSectionZone(z);
+                    if(n) s.parentNode.insertBefore(z,n); else s.parentNode.appendChild(z);
+                }
+            });
+            document.querySelectorAll('.add-section-zone').forEach(z => fillAddSectionZone(z));
+        }
+
+        function detectAndTagCurrencyColumns() {
+            document.querySelectorAll('.doc-table').forEach(table => {
+                const currencyIndices = [];
+                table.querySelectorAll('thead th').forEach((th, index) => {
+                    const txt = th.innerText.toLowerCase();
+                    if (th.classList.contains('col-price') || txt.includes('prezzo') || txt.includes('costo') || txt.includes('importo') || txt.includes('totale')) {
+                        currencyIndices.push(index);
+                    }
+                });
+                if(currencyIndices.length > 0) {
+                    table.querySelectorAll('tbody tr').forEach(row => {
+                        currencyIndices.forEach(idx => {
+                            if(row.cells[idx]) {
+                                let target = row.cells[idx].querySelector('.editable-field') || row.cells[idx];
+                                if (!target.hasAttribute('data-type')) target.setAttribute('data-type', 'currency');
+                                if(target.tagName === 'TD') target.classList.add('text-right');
+                                else target.parentElement.classList.add('text-right');
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        function fillAddSectionZone(z) {
+            z.innerHTML='';
+            let b1 = document.createElement('button'); b1.className='add-section-btn'; b1.innerText='+ Add'; b1.onclick=()=>openSectionManager(z);
+            let b2 = document.createElement('button'); b2.className='paste-section-btn'; b2.innerHTML='<i class="fas fa-paste"></i> Paste'; b2.onclick=()=>pasteSection(z);
+            z.appendChild(b1); z.appendChild(b2);
+        }
+
+        function attachRowControls(tt) { 
+            const isCalc = tt.classList.contains('calc-table');
+            tt.querySelectorAll('tbody tr').forEach(r=>{ 
+                if(r.querySelector('.row-controls')) r.querySelector('.row-controls').remove(); 
+                r.querySelectorAll('.editable-field').forEach(c=>{ c.oninput = () => { if(isCalc) { calculateRow(r); updateTableTotals(tt); }}; c.onblur = () => { formatCell(c); if(isCalc) { calculateRow(r); updateTableTotals(tt); }}; }); 
+                let d=document.createElement('div'); d.className='row-controls'; d.innerHTML=`<button class="mini-btn delete" data-i18n-title="title_delete" title="${t("title_delete")}"><i class="fas fa-trash"></i></button><button class="mini-btn add" data-i18n-title="title_copy" title="${t("title_copy")}"><i class="fas fa-copy"></i></button>`; 
+                d.querySelector('.delete').onclick=()=>{ r.remove(); if(isCalc) updateTableTotals(t); saveState(); }; 
+                d.querySelector('.add').onclick=()=>{ let c=r.cloneNode(true); if(c.querySelector('.row-controls')) c.querySelector('.row-controls').remove(); tt.querySelector('tbody').insertBefore(c, r.nextSibling); attachRowControls(t); if(isCalc) updateTableTotals(t); saveState(); }; 
+                r.cells[0].style.position='relative'; r.cells[0].appendChild(d); 
+            }); 
+        }
+        
+        function attachListControls(i) { if(i.querySelector('.list-controls')) i.querySelector('.list-controls').remove(); let d=document.createElement('div'); d.className='list-controls'; d.innerHTML=`<button class="mini-btn drag" data-i18n-title="title_drag" title="${t("title_drag")}"><i class="fas fa-bars"></i></button><button class="mini-btn delete" data-i18n-title="title_delete" title="${t("title_delete")}"><i class="fas fa-trash"></i></button>`; d.querySelector('.delete').onclick=()=>{i.remove();saveState();}; i.appendChild(d); i.draggable=true; i.addEventListener('dragstart',handleDragStart); i.addEventListener('dragover',handleDragOver); i.addEventListener('drop',handleDrop); i.addEventListener('dragend',handleDragEnd); }
+        let dragSrcEl=null; function handleDragStart(e) { dragSrcEl=this; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/html',this.innerHTML); this.classList.add('dragging'); } function handleDragOver(e) { if(e.preventDefault)e.preventDefault(); e.dataTransfer.dropEffect='move'; return false; } function handleDrop(e) { if(e.stopPropagation)e.stopPropagation(); if(dragSrcEl!==this) { let p=this.parentNode; let rect=this.getBoundingClientRect(); if((e.clientY-rect.top)<rect.height/2) p.insertBefore(dragSrcEl,this); else p.insertBefore(dragSrcEl,this.nextSibling); saveState(); } return false; } function handleDragEnd() { this.classList.remove('dragging'); document.querySelectorAll('.list-item-wrapper').forEach(x=>x.classList.remove('dragging')); }
+
+        function attachSectionControls(s) {
+            if(s.querySelector('.section-controls')) s.querySelector('.section-controls').remove();
+            if(s.classList.contains('doc-header') || s.classList.contains('doc-footer')) return;
+            let d = document.createElement('div'); d.className='section-controls';
+            let c = document.createElement('button'); c.className='mini-btn copy'; c.innerHTML='<i class="fas fa-copy"></i>'; c.title=t("title_copy"); c.setAttribute('data-i18n-title', 'title_copy'); c.onclick=()=>copySection(s);
+            let sv = document.createElement('button'); sv.className='mini-btn save'; sv.innerHTML='<i class="fas fa-save"></i>'; sv.title=t("title_save_lib"); sv.setAttribute('data-i18n-title', 'title_save_lib'); sv.onclick=()=>saveSectionToLibrary(s);
+            let dl = document.createElement('button'); dl.className='mini-btn delete'; dl.innerHTML='<i class="fas fa-trash"></i>'; dl.title=t("title_delete"); dl.setAttribute('data-i18n-title', 'title_delete'); dl.onclick=async ()=>{if(await pmConfirm(t("msg_delete_section"), t("btn_confirm"))){s.remove(); saveState();}};
+            d.appendChild(c); d.appendChild(sv); d.appendChild(dl); s.appendChild(d);
+        }
+
+        function saveState() { if(isUndoing) return; let h=document.getElementById('document-canvas').innerHTML; document.querySelectorAll('.dragging').forEach(e=>e.classList.remove('dragging')); localStorage.setItem(KEY_DRAFT, h); localStorage.setItem(KEY_DRAFT_TITLE, document.getElementById('doc-title-input').value); if(undoStack.length>0 && undoStack[undoStack.length-1].html===h) return; undoStack.push({html:h, title:document.getElementById('doc-title-input').value}); if(undoStack.length>MAX_HISTORY) undoStack.shift(); redoStack=[]; updateUndoRedoButtons(); }
+        function undo() { if(undoStack.length<=1) return; isUndoing=true; redoStack.push(undoStack.pop()); let p=undoStack[undoStack.length-1]; document.getElementById('document-canvas').innerHTML=p.html; document.getElementById('doc-title-input').value=p.title; updateDocumentTitle(p.title); hydrateDocument(); isUndoing=false; updateUndoRedoButtons(); }
+        function redo() { if(redoStack.length===0) return; isUndoing=true; let n=redoStack.pop(); undoStack.push(n); document.getElementById('document-canvas').innerHTML=n.html; document.getElementById('doc-title-input').value=n.title; updateDocumentTitle(n.title); hydrateDocument(); isUndoing=false; updateUndoRedoButtons(); }
+        function updateUndoRedoButtons() { document.getElementById('btn-undo').disabled = undoStack.length<=1; document.getElementById('btn-redo').disabled = redoStack.length===0; }
+        document.addEventListener('keydown', (e) => { if (e.ctrlKey || e.metaKey) { if (e.key === 'z') { e.preventDefault(); undo(); } else if (e.key === 'y') { e.preventDefault(); redo(); } } });
+
+        function copySection(s) { 
+            let c=s.cloneNode(true); 
+            if(c.querySelector('.section-controls')) c.querySelector('.section-controls').remove(); 
+            c.querySelectorAll('*').forEach(e=>e.removeAttribute('contenteditable')); 
+            navigator.clipboard.writeText(COPY_MARKER+c.outerHTML).then(()=>pmAlert(t("msg_section_copied"), "Info")).catch(e=>pmAlert(t("msg_copy_error") + ' ' + e, 'Errore')); 
+        }
+
+        function pasteSection(z) { 
+            navigator.clipboard.readText().then(clipText=>{ 
+                if(clipText.startsWith(COPY_MARKER)){ 
+                    let d=document.createElement('div'); d.innerHTML=clipText.replace(COPY_MARKER,''); let s=d.firstChild; 
+                    if(s && s.classList.contains('section-wrapper')){ z.parentNode.insertBefore(s, z.nextSibling); let nz=z.cloneNode(true); s.parentNode.insertBefore(nz, s.nextSibling); hydrateDocument(); saveState(); } 
+                    else { pmAlert(t("msg_paste_invalid"), 'Errore'); }
+                } else { pmAlert(t("msg_paste_notfound"), 'Attenzione'); }
+            }).catch(e=>pmAlert(t("msg_paste_error") + ' ' + e, 'Errore')); 
+        }
+
+        // --- ENCRYPTION HELPERS ---
+        function simpleEncrypt(text, key) {
+            const textUtf8 = unescape(encodeURIComponent(text));
+            let result = '';
+            for(let i=0; i<textUtf8.length; i++) {
+                result += String.fromCharCode(textUtf8.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return btoa(result);
+        }
+        
+        function simpleDecrypt(encoded, key) {
+            let text = atob(encoded);
+            let result = '';
+            for(let i=0; i<text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return decodeURIComponent(escape(result));
+        }
+
+        async function saveToFile() {
+            if(!document.getElementById('document-canvas').innerHTML.trim()) return pmAlert(t("msg_doc_empty"), "Errore");
+            
+            // 1. Prepare HTML Content
+            let c = document.getElementById('document-canvas').cloneNode(true); 
+            c.querySelectorAll('*').forEach(e=>e.removeAttribute('contenteditable'));
+            ['.row-controls','.list-controls','.section-controls','.add-section-zone','#add-recipient-btn'].forEach(s=>c.querySelectorAll(s).forEach(e=>e.remove()));
+            
+            let css = document.getElementById('document-styles').innerHTML; 
+            let fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">`;
+            
+            let finalHtml = '';
+
+            // 2. Encryption Path
+            if (appSettings.enableEncryption) {
+                let defaultDate = currentDocumentExpiry;
+                let isValidDate = false;
+                if (defaultDate) {
+                    const d = new Date(defaultDate);
+                    if (!isNaN(d.getTime())) isValidDate = true;
+                }
+
+                if (!defaultDate || !isValidDate) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    defaultDate = d.toISOString().split('T')[0];
+                }
+
+                let expiryDate = await pmExpiryDialog(currentDocumentExpiry);
+                if (expiryDate === null) return; 
+                currentDocumentExpiry = expiryDate; 
+
+                const payload = JSON.stringify({
+                    html: c.innerHTML,
+                    expiry: expiryDate
+                });
+                
+                const encryptedPayload = simpleEncrypt(payload, CRYPTO_KEY);
+                
+                // Added @media print rule to hide watermark
+                finalHtml = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${document.title}</title>${fonts}<style>${css} body { margin:0; padding:0; background: #fff; } @media print { #pm-watermark { display: none !important; } }</style></head><body class="final-preview-body" oncontextmenu="return false;"><div id="load-msg" style="text-align:center; padding:50px; font-family:sans-serif; color:#666;">${t("prot_loading")}</div><script>
+                    (function(){
+                        const k="${CRYPTO_KEY}";
+                        const d="${encryptedPayload}";
+                        const blueMsg = '<h1 style="color:#3498db;text-align:center;margin-top:50px;font-family:sans-serif;">${t("prot_msg_devtools")}</h1>';
+                        
+                        document.onkeydown = function(e) {
+                            if(e.keyCode == 123) return false; 
+                            if(e.ctrlKey && e.shiftKey && (e.keyCode == 'I'.charCodeAt(0) || e.keyCode == 'C'.charCodeAt(0) || e.keyCode == 'J'.charCodeAt(0))) return false; 
+                            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; 
+                        };
+
+                        setInterval(() => {
+                            if ((window.outerWidth - window.innerWidth) > 160 || (window.outerHeight - window.innerHeight) > 160) {
+                                 document.body.innerHTML = blueMsg;
+                            }
+                            const body = document.body;
+                            const nodes = Array.from(body.childNodes);
+                            nodes.forEach(n => n.remove());
+                            const start = performance.now();
+                            debugger; 
+                            const end = performance.now();
+                            if (end - start > 100) {
+                                body.innerHTML = blueMsg;
+                            } else {
+                                nodes.forEach(n => body.appendChild(n));
+                            }
+                        }, 500);
+
+                        try {
+                            const xorStr = atob(d).split('').map((c,i)=>String.fromCharCode(c.charCodeAt(0)^k.charCodeAt(i%k.length))).join('');
+                            const jsonStr = decodeURIComponent(escape(xorStr));
+                            const data = JSON.parse(jsonStr);
+                            if(data.expiry){
+                                const exp = new Date(data.expiry);
+                                const now = new Date();
+                                exp.setHours(23,59,59,999);
+                                if(now > exp) {
+                                    const parts = data.expiry.split("-");
+                                    const dateIT = parts[2] + "/" + parts[1] + "/" + parts[0];
+                                    document.body.innerHTML = "<div style='text-align:center;padding:50px;font-family:sans-serif;color:#3498db;'><h1>${t("prot_msg_expired")}</h1><p>${t("prot_msg_invalid").replace("{date}", '" + dateIT + "')}</p></div>";
+                                    return;
+                                }
+                            }
+                            document.body.innerHTML = '<button class="print-btn-final" onclick="window.print()">${t("prot_btn_print")}</button><div class="final-preview-page doc-body">'+data.html+'</div>';
+                            let marker = document.createElement('div');
+                            marker.id = "pm-protected-data";
+                            marker.style.display="none";
+                            marker.setAttribute("data-expiry", data.expiry || "");
+                            document.body.appendChild(marker);
+                        } catch(e) {
+                            document.body.innerHTML = "${t("prot_err_decrypt")}";
+                        }
+                    })();
+                <\/script><div id="pm-watermark" style="position:fixed;bottom:10px;right:10px;font-size:10px;color:#ccc;">${t("prot_watermark")}</div></body></html>`;
+                
+                await pmAlert(t("msg_save_prot"), "Salvataggio");
+            } else {
+                finalHtml = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${document.title}</title>${fonts}<style>${css} body { margin:0; padding:0; }</style></head><body class="final-preview-body"><button class="print-btn-final" onclick="window.print()">${t("prot_btn_print")}</button><div class="final-preview-page doc-body">${c.innerHTML}</div></body></html>`;
+                await pmAlert(t("msg_save_clear"), "Salvataggio");
+            }
+            
+            finalHtml = finalHtml.replace(/<!--[\s\S]*?-->/g, "");
+
+            let b=new Blob([finalHtml],{type:'text/html'}); 
+            let u=URL.createObjectURL(b); 
+            let a=document.createElement('a'); 
+            a.href=u; 
+            a.download=document.title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.html'; 
+            document.body.appendChild(a); 
+            a.click(); 
+            document.body.removeChild(a);
+        }
+
+        async function loadFromFile(inp) { 
+            let f=inp.files[0]; if(!f) return; 
+            let r=new FileReader(); 
+            r.onload=async e=>{ 
+                let fileContent = e.target.result;
+                let parser = new DOMParser();
+                let d = parser.parseFromString(fileContent, "text/html"); 
+                
+                let contentToLoad = "";
+                let docTitle = d.querySelector('title')?.innerText || "Import";
+                let detectedExpiry = "";
+                let isEncrypted = false;
+
+                let standardContent = d.querySelector('.final-preview-page')?.innerHTML || d.querySelector('.doc-body')?.innerHTML;
+                
+                if (standardContent && !fileContent.includes('PM_SECURE_KEY_X89')) {
+                    contentToLoad = standardContent;
+                } 
+                else if (fileContent.includes('const k="' + CRYPTO_KEY + '";')) {
+                    try {
+                        const regex = /const d="([^"]+)";/;
+                        const match = fileContent.match(regex);
+                        if(match && match[1]) {
+                            const decryptedJson = simpleDecrypt(match[1], CRYPTO_KEY);
+                            const data = JSON.parse(decryptedJson);
+                            contentToLoad = data.html;
+                            if (data.expiry) {
+                                const d = new Date(data.expiry);
+                                if (isNaN(d.getTime())) {
+                                    const tom = new Date(); tom.setDate(tom.getDate() + 1);
+                                    detectedExpiry = tom.toISOString().split('T')[0];
+                                } else {
+                                    detectedExpiry = data.expiry;
+                                }
+                            } else {
+                                detectedExpiry = "";
+                            }
+                            isEncrypted = true;
+                        }
+                    } catch(err) {
+                        await pmAlert(t("msg_decrypt_err") + " " + err, "Errore");
+                        inp.value='';
+                        return;
+                    }
+                } else if (standardContent) {
+                     contentToLoad = standardContent;
+                }
+
+                if(contentToLoad){ 
+                    document.getElementById('document-canvas').innerHTML = contentToLoad; 
+                    document.getElementById('doc-title-input').value = docTitle; 
+                    currentDocumentExpiry = detectedExpiry; 
+                    updateDocumentTitle(docTitle); 
+                    showCanvas(); 
+                    hydrateDocument(); 
+                    undoStack=[{html:contentToLoad, title:docTitle}]; 
+                    redoStack=[]; 
+                    saveState(); 
+                    if (isEncrypted) {
+                        let msg = t("msg_load_prot");
+                        if (detectedExpiry) {
+                            const parts = detectedExpiry.split('-');
+                            if(parts.length === 3) {
+                                msg += "<br>" + t("msg_expiry_set") + " " + parts[2] + "/" + parts[1] + "/" + parts[0];
+                            } else {
+                                msg += "<br>" + t("msg_expiry_set") + " " + detectedExpiry;
+                            }
+                        }
+                        await pmAlert(msg, "Info");
+                    }
+                } else {
+                    await pmAlert(t("msg_load_err"), "Errore");
+                }
+                inp.value=''; 
+            }; 
+            r.readAsText(f); 
+        }
+
+        const ft=document.getElementById('text-format-toolbar'); 
+        const bB=document.getElementById('btn-bold'); 
+        const bI=document.getElementById('btn-italic');
+        const bAI=document.getElementById('btn-rewrite');
+
+        document.addEventListener('selectionchange', () => {
+            const sel=window.getSelection();
+            if(sel.rangeCount>0 && !sel.isCollapsed && document.getElementById('document-canvas').contains(sel.getRangeAt(0).commonAncestorContainer)) {
+                const r=sel.getRangeAt(0).getBoundingClientRect(); ft.style.display='flex'; ft.style.top=(r.top+window.scrollY-40)+'px'; ft.style.left=(r.left+r.width/2)+'px';
+                document.queryCommandState('bold')?bB.classList.add('active'):bB.classList.remove('active'); document.queryCommandState('italic')?bI.classList.add('active'):bI.classList.remove('active');
+            } else ft.style.display='none';
+        });
+        bB.onmousedown=e=>{e.preventDefault();document.execCommand('bold');saveState();}; bI.onmousedown=e=>{e.preventDefault();document.execCommand('italic');saveState();};
+        
+        // AI Rewrite Trigger
+        bAI.onmousedown = e => {
+            e.preventDefault();
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0 && !sel.isCollapsed) {
+                // Save selection range
+                currentSelectionRange = sel.getRangeAt(0).cloneRange();
+                openRewriteModal(currentSelectionRange.toString());
+            }
+        };
+
+        // --- MAGIC AI ASSISTANT ---
+        function openMagicWizard() {
+            if(!appSettings.geminiApiKey) {
+                pmAlert(t("magic_api_missing"), t("magic_api_missing_title")).then(() => openSettings());
+                return;
+            }
+            document.getElementById('magic-modal').style.display = 'flex';
+            document.getElementById('magic-retry-container').style.display = 'none';
+            document.getElementById('magic-loader').style.display = 'none';
+            document.getElementById('magic-btn-generate').style.display = 'flex';
+        }
+        function closeMagicWizard() { document.getElementById('magic-modal').style.display = 'none'; }
+        
+        function handleMagicFile(input) {
+            const f = input.files[0];
+            if(!f) return;
+            document.getElementById('magic-file-name').innerText = f.name;
+            const r = new FileReader();
+            r.onload = (e) => { magicContextFile = e.target.result; };
+            r.readAsText(f);
+        }
+
+        async function generateQuoteWithAI(isRetry = false) {
+            const prompt = document.getElementById('magic-prompt').value;
+            if(!prompt && !magicContextFile) { return pmAlert(t("magic_input_missing"), t("magic_api_missing_title")); }
+            
+            document.getElementById('magic-loader').style.display = 'block';
+            document.getElementById('magic-retry-container').style.display = 'none';
+            document.getElementById('magic-btn-generate').style.display = 'none'; 
+            
+            const currentLang = activeLocale.meta.name || "Italiano";
+            const toneSelect = document.getElementById('magic-tone');
+            const toneVal = toneSelect.value; 
+            const toneLabel = toneSelect.options[toneSelect.selectedIndex].text;
+
+            const sysPrompt = `
+                Sei un assistente per la creazione di preventivi.
+                Devi rispondere in lingua: ${currentLang}.
+                Tono richiesto: ${toneLabel} (${toneVal}).
+                
+                Il tuo compito è analizzare la richiesta dell'utente e generare un JSON che rappresenti la struttura del preventivo.
+                
+                Struttura JSON richiesta:
+                {
+                    "sections": [
+                        {
+                            "type": "model_a" | "model_c" | "model_d" | "model_e",
+                            "title": "Titolo della sezione",
+                            "description": "Descrizione sotto il titolo",
+                            "data": { ...struttura specifica per tipo... }
+                        }
+                    ]
+                }
+
+                Tipi di Modelli disponibili:
+                1. "model_a" (Calcolo Completo): Tabella con colonne [Descrizione, Giorni, Costo, Prezzo, Sconto, Totale].
+                   Data: { "rows": [{ "desc": "string", "days": number, "cost": number, "discount": number }] }
+                2. "model_c" (Tabella Libera): Colonne [Descrizione, Tipo, Giornate, Prezzo, Note].
+                   Data: { "rows": [{ "desc": "string", "type": "string", "days": number, "price": number, "note": "string" }] }
+                3. "model_d" (Voce Singola): Colonne [Descrizione, Prezzo, Sconto, Totale].
+                   Data: { "rows": [{ "desc": "string", "price": number, "discount": number }] }
+                4. "model_e" (Solo Testo): Paragrafo semplice.
+                   Data: { "content": "Testo del paragrafo" }
+
+                Regole:
+                - Output SOLO JSON valido. Niente markdown, niente spiegazioni.
+                - Se l'utente non specifica prezzi, usa 0.
+                - Se l'input è vago, inventa una struttura logica professionale adatta al tono richiesto.
+                - Scegli il modello più adatto al contenuto (es. 'model_a' per servizi a giornata, 'model_e' per premesse).
+            `;
+
+            const fullPrompt = `Richiesta Utente: ${prompt}\n\nContesto File: ${magicContextFile || ''}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${appSettings.geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: sysPrompt + "\n\n" + fullPrompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if(data.error) throw new Error(data.error.message);
+                
+                let rawText = data.candidates[0].content.parts[0].text;
+                // Clean markdown if present
+                rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                
+                const jsonPlan = JSON.parse(rawText);
+                
+                applyAIPlan(jsonPlan);
+                closeMagicWizard();
+                document.getElementById('magic-prompt').value = '';
+                document.getElementById('magic-file-name').innerText = '';
+                magicContextFile = null;
+                document.getElementById('magic-file-input').value = '';
+                
+            } catch(e) {
+                console.error(e);
+                // Error Handling with Retry
+                document.getElementById('magic-loader').style.display = 'none';
+                document.getElementById('magic-retry-container').style.display = 'block';
+                document.getElementById('magic-error-msg').innerText = "Errore: " + e.message;
+                // Do NOT close modal, let user retry
+            } finally {
+               if(document.getElementById('magic-retry-container').style.display === 'none') {
+                   document.getElementById('magic-loader').style.display = 'none';
+                   document.getElementById('magic-btn-generate').style.display = 'flex';
+               }
+            }
+        }
+
+        function applyAIPlan(plan) {
+            const docCanvas = document.getElementById('document-canvas');
+            const header = docCanvas.querySelector('.doc-header');
+            const footer = docCanvas.querySelector('.doc-footer');
+            const sig = docCanvas.querySelector('.doc-signature-section');
+            
+            const headerHtml = header ? header.outerHTML : '';
+            const footerHtml = footer ? footer.outerHTML : '';
+            const sigHtml = sig ? sig.outerHTML : '';
+
+            docCanvas.innerHTML = '';
+            
+            if(headerHtml) {
+                docCanvas.innerHTML += headerHtml;
+                const rl = docCanvas.querySelector('#recipients-list');
+                if (rl) {
+                     const oldBtn = docCanvas.querySelector('#add-recipient-btn'); if(oldBtn) oldBtn.remove();
+                }
+            }
+
+            plan.sections.forEach(sec => {
+                const tmpl = BASE_SECTION_TEMPLATES.find(t => t.id === sec.type);
+                if(!tmpl) return;
+
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = tmpl.html;
+                const node = tempDiv.firstChild;
+
+                const setVal = (sel, val) => { const el = node.querySelector(sel); if(el) el.innerText = val; };
+                
+                setVal('h2', sec.title);
+                setVal('.doc-p', sec.description || sec.data.content || '');
+
+                if (sec.type === 'model_a' && sec.data.rows) {
+                    const tbody = node.querySelector('tbody');
+                    tbody.innerHTML = ''; 
+                    sec.data.rows.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td class="editable-field">${r.desc}</td><td class="text-center val-days editable-field" data-type="number">${r.days}</td><td class="text-right val-cost editable-field" data-type="currency">€ ${r.cost}</td><td class="text-right val-price bg-gray">€ 0</td><td class="text-center val-discount editable-field" data-type="percent">${r.discount}%</td><td class="text-right val-total bg-gray">€ 0</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+                
+                if (sec.type === 'model_d' && sec.data.rows) {
+                    const tbody = node.querySelector('tbody');
+                    tbody.innerHTML = ''; 
+                    sec.data.rows.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td class="editable-field">${r.desc}</td><td class="text-right val-price editable-field" data-type="currency">€ ${r.price}</td><td class="text-center val-discount editable-field" data-type="percent">${r.discount}%</td><td class="text-right val-total bg-gray">€ 0</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                if (sec.type === 'model_c' && sec.data.rows) {
+                    const tbody = node.querySelector('tbody');
+                    tbody.innerHTML = ''; 
+                    sec.data.rows.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td class="editable-field">${r.desc}</td><td class="editable-field">${r.type}</td><td class="text-center editable-field">${r.days}</td><td class="text-right editable-field" data-type="currency">€ ${r.price}</td><td class="editable-field">${r.note}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                docCanvas.appendChild(node);
+                
+                const zone = document.createElement('div');
+                zone.className = 'add-section-zone';
+                docCanvas.appendChild(zone);
+            });
+
+            if(sigHtml) docCanvas.innerHTML += sigHtml;
+            if(footerHtml) docCanvas.innerHTML += footerHtml;
+
+            hydrateDocument();
+            saveState();
+            pmAlert(t("magic_success"), t("btn_magic"));
+        }
+
+        // --- AI REWRITE LOGIC ---
+        function openRewriteModal(text) {
+            if(!appSettings.geminiApiKey) {
+                pmAlert(t("magic_api_missing"), t("magic_api_missing_title")).then(() => openSettings());
+                return;
+            }
+            document.getElementById('rewrite-input').value = text;
+            document.getElementById('rewrite-modal').style.display = 'flex';
+            document.getElementById('rewrite-retry-container').style.display = 'none';
+            document.getElementById('rewrite-loader').style.display = 'none';
+            document.getElementById('rewrite-btn-generate').style.display = 'flex';
+        }
+        function closeRewriteModal() { document.getElementById('rewrite-modal').style.display = 'none'; }
+
+        async function rewriteTextWithAI() {
+            const textToRewrite = document.getElementById('rewrite-input').value;
+            if(!textToRewrite) return;
+
+            document.getElementById('rewrite-loader').style.display = 'block';
+            document.getElementById('rewrite-retry-container').style.display = 'none';
+            document.getElementById('rewrite-btn-generate').style.display = 'none';
+
+            const currentLang = activeLocale.meta.name || "Italiano";
+            const toneSelect = document.getElementById('rewrite-tone');
+            const toneLabel = toneSelect.options[toneSelect.selectedIndex].text;
+
+            const sysPrompt = `
+                Sei un assistente editoriale professionale.
+                Il tuo compito è riscrivere il testo fornito dall'utente.
+                
+                Regole:
+                1. Lingua di output: ${currentLang}.
+                2. Tono richiesto: ${toneLabel}.
+                3. Restituisci SOLO il testo riscritto.
+                4. NON usare virgolette, markdown o commenti aggiuntivi.
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${appSettings.geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: sysPrompt + "\n\nTesto Originale:\n" + textToRewrite }] }]
+                    })
+                });
+
+                const data = await response.json();
+                if(data.error) throw new Error(data.error.message);
+                
+                let newText = data.candidates[0].content.parts[0].text.trim();
+                
+                // Restore selection and paste
+                if (currentSelectionRange) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(currentSelectionRange);
+                    document.execCommand('insertText', false, newText);
+                    saveState();
+                }
+
+                closeRewriteModal();
+                pmAlert(t("rewrite_success"), "AI Rewrite");
+
+            } catch(e) {
+                console.error(e);
+                document.getElementById('rewrite-loader').style.display = 'none';
+                document.getElementById('rewrite-retry-container').style.display = 'block';
+                document.getElementById('rewrite-error-msg').innerText = "Errore: " + e.message;
+            } finally {
+                if(document.getElementById('rewrite-retry-container').style.display === 'none') {
+                   document.getElementById('rewrite-loader').style.display = 'none';
+                   document.getElementById('rewrite-btn-generate').style.display = 'flex';
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
